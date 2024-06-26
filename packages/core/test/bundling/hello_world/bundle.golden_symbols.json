@@ -279,6 +279,9 @@
     "name": "REACTIVE_LVIEW_CONSUMER_NODE"
   },
   {
+    "name": "REACTIVE_NODE"
+  },
+  {
     "name": "RendererFactory2"
   },
   {
@@ -297,9 +300,6 @@
     "name": "Sanitizer"
   },
   {
-    "name": "SchedulingMode"
-  },
-  {
     "name": "SimpleChange"
   },
   {
@@ -310,6 +310,9 @@
   },
   {
     "name": "Subscription"
+  },
+  {
+    "name": "TEMPORARY_CONSUMER_NODE"
   },
   {
     "name": "TESTABILITY"
@@ -345,7 +348,13 @@
     "name": "ZoneStablePendingTask"
   },
   {
+    "name": "_ComponentFactoryResolver"
+  },
+  {
     "name": "_DOM"
+  },
+  {
+    "name": "_Injector"
   },
   {
     "name": "_NullComponentFactoryResolver"
@@ -379,9 +388,6 @@
   },
   {
     "name": "_retrieveHydrationInfoImpl"
-  },
-  {
-    "name": "_wrapInTimeout"
   },
   {
     "name": "activeConsumer"
@@ -460,6 +466,12 @@
   },
   {
     "name": "configureViewWithDirective"
+  },
+  {
+    "name": "consumerBeforeComputation"
+  },
+  {
+    "name": "consumerDestroy"
   },
   {
     "name": "consumerIsLive"
@@ -630,6 +642,9 @@
     "name": "getNextLContainer"
   },
   {
+    "name": "getNgZoneOptions"
+  },
+  {
     "name": "getNodeInjectable"
   },
   {
@@ -681,6 +696,9 @@
     "name": "handleUnhandledError"
   },
   {
+    "name": "hasApplyArgsData"
+  },
+  {
     "name": "icuContainerIterate"
   },
   {
@@ -724,6 +742,9 @@
   },
   {
     "name": "internalImportProvidersFrom"
+  },
+  {
+    "name": "internalProvideZoneChangeDetection"
   },
   {
     "name": "invokeHostBindingsInCreationMode"
@@ -894,7 +915,10 @@
     "name": "saveNameToExportMap"
   },
   {
-    "name": "scheduleCallback"
+    "name": "scheduleCallbackWithMicrotask"
+  },
+  {
+    "name": "scheduleCallbackWithRafRace"
   },
   {
     "name": "searchTokensOnInjector"
@@ -964,6 +988,9 @@
   },
   {
     "name": "viewAttachedToChangeDetector"
+  },
+  {
+    "name": "viewShouldHaveReactiveConsumer"
   },
   {
     "name": "walkProviderTree"

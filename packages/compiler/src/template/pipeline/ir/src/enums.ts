@@ -206,6 +206,16 @@ export enum OpKind {
   TwoWayListener,
 
   /**
+   * A creation-time operation that initializes the slot for a `@let` declaration.
+   */
+  DeclareLet,
+
+  /**
+   * An update-time operation that stores the current value of a `@let` declaration.
+   */
+  StoreLet,
+
+  /**
    * The start of an i18n block.
    */
   I18nStart,
@@ -289,6 +299,16 @@ export enum ExpressionKind {
    * Runtime operation to retrieve the value of a local reference.
    */
   Reference,
+
+  /**
+   * A call storing the value of a `@let` declaration.
+   */
+  StoreLet,
+
+  /**
+   * A reference to a `@let` declaration read from the context view.
+   */
+  ContextLetReference,
 
   /**
    * Runtime operation to snapshot the current view context.
@@ -485,7 +505,7 @@ export enum I18nParamResolutionTime {
    * Param is resolved during post-processing. This should be used for params whose value comes from
    * an ICU.
    */
-  Postproccessing
+  Postproccessing,
 }
 
 /**
@@ -533,7 +553,7 @@ export enum I18nParamValueFlags {
   /**
    * This value represents an i18n expression index.
    */
-  ExpressionIndex = 0b10000
+  ExpressionIndex = 0b10000,
 }
 
 /**
@@ -563,11 +583,11 @@ export enum DeferTriggerKind {
 export enum I18nContextKind {
   RootI18n,
   Icu,
-  Attr
+  Attr,
 }
 
 export enum TemplateKind {
   NgTemplate,
   Structural,
-  Block
+  Block,
 }

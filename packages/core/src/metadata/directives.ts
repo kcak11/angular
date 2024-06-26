@@ -16,8 +16,6 @@ import {makeDecorator, makePropDecorator, TypeDecorator} from '../util/decorator
 import {SchemaMetadata} from './schema';
 import {ViewEncapsulation} from './view';
 
-
-
 /**
  * Type of the Directive decorator / constructor function.
  * @publicApi
@@ -105,7 +103,7 @@ export interface DirectiveDecorator {
   /**
    * See the `Directive` decorator.
    */
-  new(obj?: Directive): Directive;
+  new (obj?: Directive): Directive;
 }
 
 /**
@@ -182,12 +180,15 @@ export interface Directive {
    * ```
    *
    */
-  inputs?: ({
-    name: string,
-    alias?: string,
-    required?: boolean,
-    transform?: (value: any) => any,
-  }|string)[];
+  inputs?: (
+    | {
+        name: string;
+        alias?: string;
+        required?: boolean;
+        transform?: (value: any) => any;
+      }
+    | string
+  )[];
 
   /**
    * Enumerates the set of event-bound output properties.
@@ -359,11 +360,14 @@ export interface Directive {
    * defines an input named `menuDisabled`, you can alias this to `disabled` by adding
    * `'menuDisabled: disabled'` as an entry to `inputs`.
    */
-  hostDirectives?: (Type<unknown>|{
-    directive: Type<unknown>,
-    inputs?: string[],
-    outputs?: string[],
-  })[];
+  hostDirectives?: (
+    | Type<unknown>
+    | {
+        directive: Type<unknown>;
+        inputs?: string[];
+        outputs?: string[];
+      }
+  )[];
 }
 
 /**
@@ -372,8 +376,12 @@ export interface Directive {
  * @publicApi
  */
 export const Directive: DirectiveDecorator = makeDecorator(
-    'Directive', (dir: Directive = {}) => dir, undefined, undefined,
-    (type: Type<any>, meta: Directive) => compileDirective(type, meta));
+  'Directive',
+  (dir: Directive = {}) => dir,
+  undefined,
+  undefined,
+  (type: Type<any>, meta: Directive) => compileDirective(type, meta),
+);
 
 /**
  * Component decorator interface
@@ -522,7 +530,7 @@ export interface ComponentDecorator {
   /**
    * See the `Component` decorator.
    */
-  new(obj: Component): Component;
+  new (obj: Component): Component;
 }
 
 /**
@@ -588,7 +596,7 @@ export interface Component extends Directive {
    * One or more inline CSS stylesheets to use
    * in this component.
    */
-  styles?: string|string[];
+  styles?: string | string[];
 
   /**
    * One or more animation `trigger()` calls, containing
@@ -617,6 +625,8 @@ export interface Component extends Directive {
 
   /**
    * Overrides the default interpolation start and end delimiters (`{{` and `}}`).
+   *
+   * @deprecated use Angular's default interpolation delimiters instead.
    */
   interpolation?: [string, string];
 
@@ -649,7 +659,7 @@ export interface Component extends Directive {
    * More information about standalone components, directives, and pipes can be found in [this
    * guide](guide/components/importing).
    */
-  imports?: (Type<any>|ReadonlyArray<any>)[];
+  imports?: (Type<any> | ReadonlyArray<any>)[];
 
   /**
    * The `deferredImports` property specifies a standalone component's template dependencies,
@@ -660,7 +670,7 @@ export interface Component extends Directive {
    * Note: this is an internal-only field, use regular `@Component.imports` field instead.
    * @internal
    */
-  deferredImports?: (Type<any>|ReadonlyArray<any>)[];
+  deferredImports?: (Type<any> | ReadonlyArray<any>)[];
 
   /**
    * The set of schemas that declare elements to be allowed in a standalone component. Elements and
@@ -682,8 +692,12 @@ export interface Component extends Directive {
  * @publicApi
  */
 export const Component: ComponentDecorator = makeDecorator(
-    'Component', (c: Component = {}) => ({changeDetection: ChangeDetectionStrategy.Default, ...c}),
-    Directive, undefined, (type: Type<any>, meta: Component) => compileComponent(type, meta));
+  'Component',
+  (c: Component = {}) => ({changeDetection: ChangeDetectionStrategy.Default, ...c}),
+  Directive,
+  undefined,
+  (type: Type<any>, meta: Component) => compileComponent(type, meta),
+);
 
 /**
  * Type of the Pipe decorator / constructor function.
@@ -717,7 +731,7 @@ export interface PipeDecorator {
   /**
    * See the `Pipe` decorator.
    */
-  new(obj: Pipe): Pipe;
+  new (obj: Pipe): Pipe;
 }
 
 /**
@@ -760,9 +774,12 @@ export interface Pipe {
  * @publicApi
  */
 export const Pipe: PipeDecorator = makeDecorator(
-    'Pipe', (p: Pipe) => ({pure: true, ...p}), undefined, undefined,
-    (type: Type<any>, meta: Pipe) => compilePipe(type, meta));
-
+  'Pipe',
+  (p: Pipe) => ({pure: true, ...p}),
+  undefined,
+  undefined,
+  (type: Type<any>, meta: Pipe) => compilePipe(type, meta),
+);
 
 /**
  * @publicApi
@@ -820,8 +837,8 @@ export interface InputDecorator {
    * @see [Input properties](guide/components/inputs)
    * @see [Output properties](guide/components/outputs)
    */
-  (arg?: string|Input): any;
-  new(arg?: string|Input): any;
+  (arg?: string | Input): any;
+  new (arg?: string | Input): any;
 }
 
 /**
@@ -864,13 +881,15 @@ export interface Input {
  * @Annotation
  * @publicApi
  */
-export const Input: InputDecorator =
-    makePropDecorator('Input', (arg?: string|{alias?: string, required?: boolean}) => {
-      if (!arg) {
-        return {};
-      }
-      return typeof arg === 'string' ? {alias: arg} : arg;
-    });
+export const Input: InputDecorator = makePropDecorator(
+  'Input',
+  (arg?: string | {alias?: string; required?: boolean}) => {
+    if (!arg) {
+      return {};
+    }
+    return typeof arg === 'string' ? {alias: arg} : arg;
+  },
+);
 
 /**
  * Type of the Output decorator / constructor function.
@@ -896,7 +915,7 @@ export interface OutputDecorator {
    *
    */
   (alias?: string): any;
-  new(alias?: string): any;
+  new (alias?: string): any;
 }
 
 /**
@@ -916,8 +935,6 @@ export interface Output {
  * @publicApi
  */
 export const Output: OutputDecorator = makePropDecorator('Output', (alias?: string) => ({alias}));
-
-
 
 /**
  * Type of the HostBinding decorator / constructor function.
@@ -967,7 +984,7 @@ export interface HostBindingDecorator {
    *
    */
   (hostPropertyName?: string): any;
-  new(hostPropertyName?: string): any;
+  new (hostPropertyName?: string): any;
 }
 
 /**
@@ -990,9 +1007,10 @@ export interface HostBinding {
  * @Annotation
  * @publicApi
  */
-export const HostBinding: HostBindingDecorator =
-    makePropDecorator('HostBinding', (hostPropertyName?: string) => ({hostPropertyName}));
-
+export const HostBinding: HostBindingDecorator = makePropDecorator(
+  'HostBinding',
+  (hostPropertyName?: string) => ({hostPropertyName}),
+);
 
 /**
  * Type of the HostListener decorator / constructor function.
@@ -1008,9 +1026,63 @@ export interface HostListenerDecorator {
    * and updates the bound element with the result.
    *
    * If the handler method returns false, applies `preventDefault` on the bound element.
+   *
+   * @usageNotes
+   *
+   * The following example declares a directive
+   * that attaches a click listener to a button and counts clicks.
+   *
+   * ```ts
+   * @Directive({selector: 'button[counting]'})
+   * class CountClicks {
+   *   numberOfClicks = 0;
+   *
+   *   @HostListener('click', ['$event.target'])
+   *   onClick(btn) {
+   *     console.log('button', btn, 'number of clicks:', this.numberOfClicks++);
+   *   }
+   * }
+   *
+   * @Component({
+   *   selector: 'app',
+   *   template: '<button counting>Increment</button>',
+   * })
+   * class App {}
+   * ```
+   *
+   * The following example registers another DOM event handler that listens for `Enter` key-press
+   * events on the global `window`.
+   * ```ts
+   * import { HostListener, Component } from "@angular/core";
+   *
+   * @Component({
+   *   selector: 'app',
+   *   template: `<h1>Hello, you have pressed enter {{counter}} number of times!</h1> Press enter
+   * key to increment the counter. <button (click)="resetCounter()">Reset Counter</button>`
+   * })
+   * class AppComponent {
+   *   counter = 0;
+   *   @HostListener('window:keydown.enter', ['$event'])
+   *   handleKeyDown(event: KeyboardEvent) {
+   *     this.counter++;
+   *   }
+   *   resetCounter() {
+   *     this.counter = 0;
+   *   }
+   * }
+   * ```
+   * The list of valid key names for `keydown` and `keyup` events
+   * can be found here:
+   * https://www.w3.org/TR/DOM-Level-3-Events-key/#named-key-attribute-values
+   *
+   * Note that keys can also be combined, e.g. `@HostListener('keydown.shift.a')`.
+   *
+   * The global target names that can be used to prefix an event name are
+   * `document:`, `window:` and `body:`.
+   *
    */
   (eventName: string, args?: string[]): any;
-  new(eventName: string, args?: string[]): any;
+  new (eventName: string, args?: string[]): any;
 }
 
 /**
@@ -1030,69 +1102,10 @@ export interface HostListener {
 }
 
 /**
- * Decorator that binds a DOM event to a host listener and supplies configuration metadata.
- * Angular invokes the supplied handler method when the host element emits the specified event,
- * and updates the bound element with the result.
- *
- * If the handler method returns false, applies `preventDefault` on the bound element.
- *
- * @usageNotes
- *
- * The following example declares a directive
- * that attaches a click listener to a button and counts clicks.
- *
- * ```ts
- * @Directive({selector: 'button[counting]'})
- * class CountClicks {
- *   numberOfClicks = 0;
- *
- *   @HostListener('click', ['$event.target'])
- *   onClick(btn) {
- *     console.log('button', btn, 'number of clicks:', this.numberOfClicks++);
- *   }
- * }
- *
- * @Component({
- *   selector: 'app',
- *   template: '<button counting>Increment</button>',
- * })
- * class App {}
- *
- * ```
- *
- * The following example registers another DOM event handler that listens for `Enter` key-press
- * events on the global `window`.
- * ``` ts
- * import { HostListener, Component } from "@angular/core";
- *
- * @Component({
- *   selector: 'app',
- *   template: `<h1>Hello, you have pressed enter {{counter}} number of times!</h1> Press enter key
- * to increment the counter.
- *   <button (click)="resetCounter()">Reset Counter</button>`
- * })
- * class AppComponent {
- *   counter = 0;
- *   @HostListener('window:keydown.enter', ['$event'])
- *   handleKeyDown(event: KeyboardEvent) {
- *     this.counter++;
- *   }
- *   resetCounter() {
- *     this.counter = 0;
- *   }
- * }
- * ```
- * The list of valid key names for `keydown` and `keyup` events
- * can be found here:
- * https://www.w3.org/TR/DOM-Level-3-Events-key/#named-key-attribute-values
- *
- * Note that keys can also be combined, e.g. `@HostListener('keydown.shift.a')`.
- *
- * The global target names that can be used to prefix an event name are
- * `document:`, `window:` and `body:`.
- *
  * @Annotation
  * @publicApi
  */
-export const HostListener: HostListenerDecorator =
-    makePropDecorator('HostListener', (eventName?: string, args?: string[]) => ({eventName, args}));
+export const HostListener: HostListenerDecorator = makePropDecorator(
+  'HostListener',
+  (eventName?: string, args?: string[]) => ({eventName, args}),
+);

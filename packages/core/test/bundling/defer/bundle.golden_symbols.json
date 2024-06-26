@@ -441,9 +441,6 @@
     "name": "Sanitizer"
   },
   {
-    "name": "SchedulingMode"
-  },
-  {
     "name": "ShadowDomRenderer"
   },
   {
@@ -463,6 +460,9 @@
   },
   {
     "name": "Subscription"
+  },
+  {
+    "name": "TEMPORARY_CONSUMER_NODE"
   },
   {
     "name": "TESTABILITY"
@@ -504,7 +504,13 @@
     "name": "ZoneStablePendingTask"
   },
   {
+    "name": "_ComponentFactoryResolver"
+  },
+  {
     "name": "_DOM"
+  },
+  {
+    "name": "_Injector"
   },
   {
     "name": "_NullComponentFactoryResolver"
@@ -574,9 +580,6 @@
   },
   {
     "name": "_wasLastNodeCreated"
-  },
-  {
-    "name": "_wrapInTimeout"
   },
   {
     "name": "activeConsumer"
@@ -676,6 +679,12 @@
   },
   {
     "name": "configureViewWithDirective"
+  },
+  {
+    "name": "consumerBeforeComputation"
+  },
+  {
+    "name": "consumerDestroy"
   },
   {
     "name": "consumerIsLive"
@@ -978,6 +987,9 @@
     "name": "handleUnhandledError"
   },
   {
+    "name": "hasApplyArgsData"
+  },
+  {
     "name": "hasInSkipHydrationBlockFlag"
   },
   {
@@ -1024,6 +1036,12 @@
   },
   {
     "name": "init_UnsubscriptionError"
+  },
+  {
+    "name": "init_a11y_click"
+  },
+  {
+    "name": "init_action_resolver"
   },
   {
     "name": "init_advance"
@@ -1092,6 +1110,9 @@
     "name": "init_attribute"
   },
   {
+    "name": "init_attribute2"
+  },
+  {
     "name": "init_attribute_interpolation"
   },
   {
@@ -1107,10 +1128,16 @@
     "name": "init_bypass"
   },
   {
+    "name": "init_cache"
+  },
+  {
     "name": "init_cached_injector_service"
   },
   {
     "name": "init_callback_scheduler"
+  },
+  {
+    "name": "init_chained_injector"
   },
   {
     "name": "init_change_detection"
@@ -1126,6 +1153,9 @@
   },
   {
     "name": "init_change_detector_ref"
+  },
+  {
+    "name": "init_char"
   },
   {
     "name": "init_class_differ"
@@ -1302,13 +1332,22 @@
     "name": "init_discovery_utils"
   },
   {
+    "name": "init_dispatcher"
+  },
+  {
     "name": "init_document"
   },
   {
     "name": "init_dom"
   },
   {
+    "name": "init_dom2"
+  },
+  {
     "name": "init_dom_triggers"
+  },
+  {
+    "name": "init_earlyeventcontract"
   },
   {
     "name": "init_effect"
@@ -1368,7 +1407,40 @@
     "name": "init_esm"
   },
   {
+    "name": "init_event"
+  },
+  {
+    "name": "init_event_contract_container"
+  },
+  {
+    "name": "init_event_contract_defines"
+  },
+  {
+    "name": "init_event_delegation_utils"
+  },
+  {
+    "name": "init_event_dispatch"
+  },
+  {
+    "name": "init_event_dispatcher"
+  },
+  {
     "name": "init_event_emitter"
+  },
+  {
+    "name": "init_event_info"
+  },
+  {
+    "name": "init_event_replay"
+  },
+  {
+    "name": "init_event_type"
+  },
+  {
+    "name": "init_eventcontract"
+  },
+  {
+    "name": "init_exhaustive_check_no_changes"
   },
   {
     "name": "init_fields"
@@ -1402,6 +1474,9 @@
   },
   {
     "name": "init_host_property"
+  },
+  {
+    "name": "init_host_tag_name_token"
   },
   {
     "name": "init_html_sanitizer"
@@ -1545,10 +1620,16 @@
     "name": "init_jit_options"
   },
   {
+    "name": "init_key_code"
+  },
+  {
     "name": "init_keyvalue_differs"
   },
   {
     "name": "init_lang"
+  },
+  {
+    "name": "init_let_declaration"
   },
   {
     "name": "init_lift"
@@ -1737,6 +1818,9 @@
     "name": "init_property2"
   },
   {
+    "name": "init_property3"
+  },
+  {
     "name": "init_property_interpolation"
   },
   {
@@ -1791,6 +1875,9 @@
     "name": "init_reflection_capabilities"
   },
   {
+    "name": "init_register_events"
+  },
+  {
     "name": "init_render"
   },
   {
@@ -1804,6 +1891,9 @@
   },
   {
     "name": "init_resource_loading"
+  },
+  {
+    "name": "init_restriction"
   },
   {
     "name": "init_sanitization"
@@ -2037,6 +2127,9 @@
     "name": "internalImportProvidersFrom"
   },
   {
+    "name": "internalProvideZoneChangeDetection"
+  },
+  {
     "name": "invokeAllTriggerCleanupFns"
   },
   {
@@ -2086,6 +2179,9 @@
   },
   {
     "name": "isNodeMatchingSelectorList"
+  },
+  {
+    "name": "isPlatformBrowser"
   },
   {
     "name": "isPlatformServer"
@@ -2229,9 +2325,6 @@
     "name": "profiler"
   },
   {
-    "name": "provideZoneChangeDetection"
-  },
-  {
     "name": "refreshContentQueries"
   },
   {
@@ -2286,7 +2379,10 @@
     "name": "saveResolvedLocalsInData"
   },
   {
-    "name": "scheduleCallback"
+    "name": "scheduleCallbackWithMicrotask"
+  },
+  {
+    "name": "scheduleCallbackWithRafRace"
   },
   {
     "name": "searchTokensOnInjector"
@@ -2355,9 +2451,6 @@
     "name": "stringifyCSSSelector"
   },
   {
-    "name": "throwError"
-  },
-  {
     "name": "throwProviderNotFoundError"
   },
   {
@@ -2385,6 +2478,9 @@
     "name": "viewAttachedToChangeDetector"
   },
   {
+    "name": "viewShouldHaveReactiveConsumer"
+  },
+  {
     "name": "walkProviderTree"
   },
   {
@@ -2404,9 +2500,6 @@
   },
   {
     "name": "ɵɵdefer"
-  },
-  {
-    "name": "ɵɵdeferWhen"
   },
   {
     "name": "ɵɵdefineComponent"

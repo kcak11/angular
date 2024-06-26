@@ -8,20 +8,6 @@ workspace(
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//:yarn.bzl", "YARN_LABEL")
 
-# Add a patch fix for rules_webtesting v0.3.5 required for enabling runfiles on Windows.
-# TODO: Remove the http_archive for this transitive dependency when a release is cut
-# for https://github.com/bazelbuild/rules_webtesting/commit/581b1557e382f93419da6a03b91a45c2ac9a9ec8
-# and the version is updated in rules_nodejs.
-http_archive(
-    name = "io_bazel_rules_webtesting",
-    patch_args = ["-p1"],
-    patches = [
-        "//:tools/bazel-repo-patches/rules_webtesting__windows_runfiles_fix.patch",
-    ],
-    sha256 = "e9abb7658b6a129740c0b3ef6f5a2370864e102a5ba5ffca2cea565829ed825a",
-    urls = ["https://github.com/bazelbuild/rules_webtesting/releases/download/0.3.5/rules_webtesting.tar.gz"],
-)
-
 http_archive(
     name = "build_bazel_rules_nodejs",
     patches = [
@@ -64,16 +50,16 @@ load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
 nodejs_register_toolchains(
     name = "nodejs",
     node_repositories = {
-        "18.18.2-darwin_arm64": ("node-v18.18.2-darwin-arm64.tar.gz", "node-v18.18.2-darwin-arm64", "9f982cc91b28778dd8638e4f94563b0c2a1da7aba62beb72bd427721035ab553"),
-        "18.18.2-darwin_amd64": ("node-v18.18.2-darwin-x64.tar.gz", "node-v18.18.2-darwin-x64", "5bb8da908ed590e256a69bf2862238c8a67bc4600119f2f7721ca18a7c810c0f"),
-        "18.18.2-linux_arm64": ("node-v18.18.2-linux-arm64.tar.xz", "node-v18.18.2-linux-arm64", "2e630e18548627f61eaf573233da7949dc0a1df5eef3f486fa9820c5f6c121aa"),
-        "18.18.2-linux_ppc64le": ("node-v18.18.2-linux-ppc64le.tar.xz", "node-v18.18.2-linux-ppc64le", "b0adff5cf5938266b711d6c724fb134d802e0dee40b3a3f73d162de1b3d11880"),
-        "18.18.2-linux_s390x": ("node-v18.18.2-linux-s390x.tar.xz", "node-v18.18.2-linux-s390x", "c70ec2074b5e2b42c55bb4b8105418b67bf8a61c500d9376a07430dfcc341fdb"),
-        "18.18.2-linux_amd64": ("node-v18.18.2-linux-x64.tar.xz", "node-v18.18.2-linux-x64", "75aba25ae76999309fc6c598efe56ce53fbfc221381a44a840864276264ab8ac"),
-        "18.18.2-windows_amd64": ("node-v18.18.2-win-x64.zip", "node-v18.18.2-win-x64", "3bb0e51e579a41a22b3bf6cb2f3e79c03801aa17acbe0ca00fc555d1282e7acd"),
+        "18.20.0-darwin_arm64": ("node-v18.20.0-darwin-arm64.tar.gz", "node-v18.20.0-darwin-arm64", "10066ad4dd9e03ea5c4c45ef8775420ff37b860de09bbdf87b97e0c07b1ea036"),
+        "18.20.0-darwin_amd64": ("node-v18.20.0-darwin-x64.tar.gz", "node-v18.20.0-darwin-x64", "062ba71618e88e06321de5caa038843c350aababa2d315f3ca7b8551f8e66c1c"),
+        "18.20.0-linux_arm64": ("node-v18.20.0-linux-arm64.tar.xz", "node-v18.20.0-linux-arm64", "afe51da9ffb38ac1e3a20d9a06efd403ced4bf8831ab554a02a088dd8392fd79"),
+        "18.20.0-linux_ppc64le": ("node-v18.20.0-linux-ppc64le.tar.xz", "node-v18.20.0-linux-ppc64le", "9e652bbf53a3e37285b11dfb9d6a9bb8b02010c3b50e5c8229d4cc10e72681da"),
+        "18.20.0-linux_s390x": ("node-v18.20.0-linux-s390x.tar.xz", "node-v18.20.0-linux-s390x", "a6c2a5796b9d9e9bf21da62ec89ff30b41a8108880b9eaa3c912f1ce795a7743"),
+        "18.20.0-linux_amd64": ("node-v18.20.0-linux-x64.tar.xz", "node-v18.20.0-linux-x64", "03eea148e56785babb27930b05ed6bf311aaa3bc573c0399dd63cad2fe5713c7"),
+        "18.20.0-windows_amd64": ("node-v18.20.0-win-x64.zip", "node-v18.20.0-win-x64", "1c0aab05cc6836a8f5148cca345b92ebc948a4a2013f18d117b7ade6ff05aca6"),
     },
     # We need at least Node 18.17 due to some transitive dependencies.
-    node_version = "18.18.2",
+    node_version = "18.20.0",
 )
 
 # Download npm dependencies.
@@ -89,7 +75,7 @@ yarn_install(
         "//:.yarnrc",
         "//:tools/npm-patches/@bazel+jasmine+5.8.1.patch",
         "//tools:postinstall-patches.js",
-        "//tools/esm-interop:patches/npm/@angular+build-tooling+0.0.0-e0ec7b60641d7f6369be45d8d02663fd50f320be.patch",
+        "//tools/esm-interop:patches/npm/@angular+build-tooling+0.0.0-239d56b71911f9fa1eeefb6e4505dbe7b0cd81a7.patch",
         "//tools/esm-interop:patches/npm/@bazel+concatjs+5.8.1.patch",
         "//tools/esm-interop:patches/npm/@bazel+esbuild+5.7.1.patch",
         "//tools/esm-interop:patches/npm/@bazel+protractor+5.7.1.patch",
@@ -106,30 +92,6 @@ yarn_install(
     symlink_node_modules = True,
     yarn = YARN_LABEL,
     yarn_lock = "//:yarn.lock",
-)
-
-yarn_install(
-    name = "aio_example_deps",
-    # Rename the default js_library target from "node_modules" as this obscures the
-    # the source directory stamped as a filegroup in the manual BUILD contents below.
-    all_node_modules_target_name = "node_modules_all",
-    data = [
-        YARN_LABEL,
-        "//:.yarnrc",
-    ],
-    # Disabled because, when False, yarn_install preserves the node_modules folder
-    # with bin symlinks in the external repository. This is needed to link the shared
-    # set of deps for example e2es.
-    exports_directories_only = False,
-    manual_build_file_contents = """\
-filegroup(
-    name = "node_modules_files",
-    srcs = ["node_modules"],
-)
-""",
-    package_json = "//aio/tools/examples/shared:package.json",
-    yarn = YARN_LABEL,
-    yarn_lock = "//aio/tools/examples/shared:yarn.lock",
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
@@ -181,10 +143,10 @@ cldr_xml_data_repository(
 # sass rules
 http_archive(
     name = "io_bazel_rules_sass",
-    sha256 = "ca27b3dcd294b134ccc9d0a1c6b63b810e115204e87a2b3d4cc247f5676d0a85",
-    strip_prefix = "rules_sass-c3f163fd9f570846c2aae4bf16ac69b4217e6f3b",
+    sha256 = "47c50aa960ddf875a2a2dd7efd1c839e5f8598725c00014680122b0e48d0ec7f",
+    strip_prefix = "rules_sass-b222c61b3d3879ec45b66062b2c706a72f3d80bb",
     urls = [
-        "https://github.com/bazelbuild/rules_sass/archive/c3f163fd9f570846c2aae4bf16ac69b4217e6f3b.zip",
+        "https://github.com/bazelbuild/rules_sass/archive/b222c61b3d3879ec45b66062b2c706a72f3d80bb.zip",
     ],
 )
 

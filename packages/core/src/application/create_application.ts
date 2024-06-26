@@ -8,7 +8,10 @@
 
 import {Subscription} from 'rxjs';
 
-import {provideZoneChangeDetection} from '../change_detection/scheduling/ng_zone_scheduling';
+import {
+  internalProvideZoneChangeDetection,
+  PROVIDED_NG_ZONE,
+} from '../change_detection/scheduling/ng_zone_scheduling';
 import {EnvironmentProviders, Provider, StaticProvider} from '../di/interface/provider';
 import {EnvironmentInjector} from '../di/r3_injector';
 import {ErrorHandler} from '../error_handler';
@@ -26,6 +29,11 @@ import {NgZone} from '../zone/ng_zone';
 
 import {ApplicationInitStatus} from './application_init';
 import {_callAndReportToErrorHandler, ApplicationRef} from './application_ref';
+import {
+  PROVIDED_ZONELESS,
+  ChangeDetectionScheduler,
+} from '../change_detection/scheduling/zoneless_scheduling';
+import {ChangeDetectionSchedulerImpl} from '../change_detection/scheduling/zoneless_scheduling_impl';
 
 /**
  * Internal create application API that implements the core application creation logic and optional
@@ -41,7 +49,7 @@ import {_callAndReportToErrorHandler, ApplicationRef} from './application_ref';
 
 export function internalCreateApplication(config: {
   rootComponent?: Type<unknown>;
-  appProviders?: Array<Provider|EnvironmentProviders>;
+  appProviders?: Array<Provider | EnvironmentProviders>;
   platformProviders?: Provider[];
 }): Promise<ApplicationRef> {
   try {
@@ -56,13 +64,14 @@ export function internalCreateApplication(config: {
     // Create root application injector based on a set of providers configured at the platform
     // bootstrap level as well as providers passed to the bootstrap call by a user.
     const allAppProviders = [
-      provideZoneChangeDetection(),
+      internalProvideZoneChangeDetection({}),
+      {provide: ChangeDetectionScheduler, useExisting: ChangeDetectionSchedulerImpl},
       ...(appProviders || []),
     ];
     const adapter = new EnvironmentNgModuleRefAdapter({
       providers: allAppProviders,
       parent: platformInjector as EnvironmentInjector,
-      debugName: (typeof ngDevMode === 'undefined' || ngDevMode) ? 'Environment Injector' : '',
+      debugName: typeof ngDevMode === 'undefined' || ngDevMode ? 'Environment Injector' : '',
       // We skip environment initializers because we need to run them inside the NgZone, which
       // happens after we get the NgZone instance from the Injector.
       runEnvironmentInitializers: false,
@@ -72,11 +81,21 @@ export function internalCreateApplication(config: {
 
     return ngZone.run(() => {
       envInjector.resolveInjectorInitializers();
-      const exceptionHandler: ErrorHandler|null = envInjector.get(ErrorHandler, null);
-      if ((typeof ngDevMode === 'undefined' || ngDevMode) && !exceptionHandler) {
-        throw new RuntimeError(
+      const exceptionHandler: ErrorHandler | null = envInjector.get(ErrorHandler, null);
+      if (typeof ngDevMode === 'undefined' || ngDevMode) {
+        if (!exceptionHandler) {
+          throw new RuntimeError(
             RuntimeErrorCode.MISSING_REQUIRED_INJECTABLE_IN_BOOTSTRAP,
-            'No `ErrorHandler` found in the Dependency Injection tree.');
+            'No `ErrorHandler` found in the Dependency Injection tree.',
+          );
+        }
+        if (envInjector.get(PROVIDED_ZONELESS) && envInjector.get(PROVIDED_NG_ZONE)) {
+          throw new RuntimeError(
+            RuntimeErrorCode.PROVIDED_BOTH_ZONE_AND_ZONELESS,
+            'Invalid change detection configuration: ' +
+              'provideZoneChangeDetection and provideExperimentalZonelessChangeDetection cannot be used together.',
+          );
+        }
       }
 
       let onErrorSubscription: Subscription;
@@ -84,7 +103,7 @@ export function internalCreateApplication(config: {
         onErrorSubscription = ngZone.onError.subscribe({
           next: (error: any) => {
             exceptionHandler!.handleError(error);
-          }
+          },
         });
       });
 

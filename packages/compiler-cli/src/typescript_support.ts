@@ -26,7 +26,7 @@ const MIN_TS_VERSION = '5.4.0';
  * Note: this check is disabled in g3, search for
  * `angularCompilerOptions.disableTypeScriptVersionCheck` config param value in g3.
  */
-const MAX_TS_VERSION = '5.5.0';
+const MAX_TS_VERSION = '5.6.0';
 
 /**
  * The currently used version of TypeScript, which can be adjusted for testing purposes using
@@ -54,9 +54,10 @@ export function restoreTypeScriptVersionForTesting(): void {
  * @throws Will throw an error if the given version ∉ [minVersion, maxVersion[
  */
 export function checkVersion(version: string, minVersion: string, maxVersion: string) {
-  if ((compareVersions(version, minVersion) < 0 || compareVersions(version, maxVersion) >= 0)) {
-    throw new Error(`The Angular Compiler requires TypeScript >=${minVersion} and <${
-        maxVersion} but ${version} was found instead.`);
+  if (compareVersions(version, minVersion) < 0 || compareVersions(version, maxVersion) >= 0) {
+    throw new Error(
+      `The Angular Compiler requires TypeScript >=${minVersion} and <${maxVersion} but ${version} was found instead.`,
+    );
   }
 }
 

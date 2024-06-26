@@ -240,7 +240,7 @@
     "name": "EventManagerPlugin"
   },
   {
-    "name": "EventType"
+    "name": "EventType2"
   },
   {
     "name": "GenericBrowserDomAdapter"
@@ -549,6 +549,9 @@
     "name": "REACTIVE_LVIEW_CONSUMER_NODE"
   },
   {
+    "name": "REACTIVE_NODE"
+  },
+  {
     "name": "REMOVE_STYLES_ON_COMPONENT_DESTROY"
   },
   {
@@ -651,9 +654,6 @@
     "name": "Sanitizer"
   },
   {
-    "name": "SchedulingMode"
-  },
-  {
     "name": "SecurityContext"
   },
   {
@@ -679,6 +679,9 @@
   },
   {
     "name": "Subscription"
+  },
+  {
+    "name": "TEMPORARY_CONSUMER_NODE"
   },
   {
     "name": "TESTABILITY"
@@ -768,7 +771,13 @@
     "name": "ZoneStablePendingTask"
   },
   {
+    "name": "_ComponentFactoryResolver"
+  },
+  {
     "name": "_DOM"
+  },
+  {
+    "name": "_Injector"
   },
   {
     "name": "_NullComponentFactoryResolver"
@@ -832,9 +841,6 @@
   },
   {
     "name": "_wasLastNodeCreated"
-  },
-  {
-    "name": "_wrapInTimeout"
   },
   {
     "name": "activeConsumer"
@@ -961,6 +967,12 @@
   },
   {
     "name": "configureViewWithDirective"
+  },
+  {
+    "name": "consumerBeforeComputation"
+  },
+  {
+    "name": "consumerDestroy"
   },
   {
     "name": "consumerIsLive"
@@ -1437,6 +1449,9 @@
     "name": "handleUnhandledError"
   },
   {
+    "name": "hasApplyArgsData"
+  },
+  {
     "name": "hasEmptyPathConfig"
   },
   {
@@ -1516,6 +1531,9 @@
   },
   {
     "name": "internalImportProvidersFrom"
+  },
+  {
+    "name": "internalProvideZoneChangeDetection"
   },
   {
     "name": "invokeDirectivesHostBindings"
@@ -1665,9 +1683,6 @@
     "name": "lookupTokenUsingNodeInjector"
   },
   {
-    "name": "makeEnvironmentProviders"
-  },
-  {
     "name": "makeRecord"
   },
   {
@@ -1812,9 +1827,6 @@
     "name": "pathCompareMap"
   },
   {
-    "name": "performanceMarkFeature"
-  },
-  {
     "name": "pipeFromArray"
   },
   {
@@ -1837,9 +1849,6 @@
   },
   {
     "name": "profiler"
-  },
-  {
-    "name": "provideZoneChangeDetection"
   },
   {
     "name": "readableStreamLikeToAsyncGenerator"
@@ -1914,7 +1923,10 @@
     "name": "scheduleAsyncIterable"
   },
   {
-    "name": "scheduleCallback"
+    "name": "scheduleCallbackWithMicrotask"
+  },
+  {
+    "name": "scheduleCallbackWithRafRace"
   },
   {
     "name": "searchTokensOnInjector"
@@ -2089,6 +2101,9 @@
   },
   {
     "name": "viewAttachedToChangeDetector"
+  },
+  {
+    "name": "viewShouldHaveReactiveConsumer"
   },
   {
     "name": "walkProviderTree"

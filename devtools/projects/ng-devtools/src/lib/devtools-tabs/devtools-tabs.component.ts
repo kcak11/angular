@@ -9,8 +9,10 @@
 import {
   AfterViewInit,
   Component,
+  computed,
   EventEmitter,
   inject,
+  input,
   Input,
   OnInit,
   Output,
@@ -59,7 +61,6 @@ type Tabs = 'Components' | 'Profiler' | 'Router Tree' | 'Injector Tree';
   providers: [TabUpdate],
 })
 export class DevToolsTabsComponent implements OnInit, AfterViewInit {
-  @Input() angularVersion: string | undefined = undefined;
   @Input() isHydrationEnabled = false;
 
   @Output() frameSelected = new EventEmitter<Frame>();
@@ -79,6 +80,17 @@ export class DevToolsTabsComponent implements OnInit, AfterViewInit {
   frameManager = inject(FrameManager);
 
   TOP_LEVEL_FRAME_ID = TOP_LEVEL_FRAME_ID;
+
+  angularVersion = input<string | undefined>(undefined);
+  majorAngularVersion = computed(() => {
+    const version = this.angularVersion();
+    if (!version) {
+      return -1;
+    }
+    return parseInt(version.toString().split('.')[0], 10);
+  });
+
+  extensionVersion = 'Development Build';
 
   constructor(
     public tabUpdate: TabUpdate,
@@ -101,6 +113,10 @@ export class DevToolsTabsComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.navbar.stretchTabs = false;
+
+    if (chrome !== undefined && chrome.runtime !== undefined) {
+      this.extensionVersion = chrome.runtime.getManifest().version;
+    }
   }
 
   get tabs(): Tabs[] {
@@ -110,10 +126,6 @@ export class DevToolsTabsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.navbar.disablePagination = true;
-  }
-
-  get latestSHA(): string {
-    return this.applicationEnvironment.environment.LATEST_SHA.slice(0, 8);
   }
 
   changeTab(tab: Tabs): void {

@@ -478,6 +478,7 @@ groups:
       users:
         - alxhub
         - atscott
+        - dylhunn
 
   # =========================================================
   #  zone.js
@@ -546,7 +547,6 @@ groups:
         - dylhunn
         - thePunderWoman
         - josephperrott
-        - pkozlowski-opensource
 
   # =========================================================
   #  Docs: Packaging, Tooling, Releasing
@@ -556,8 +556,7 @@ groups:
     conditions:
       - >
         contains_any_globs(files, [
-          'docs/PUBLIC_API.md',
-          'docs/RELEASE_SCHEDULE.md',
+          'contributing-docs/public-api-surface.md',
           ])
     reviewers:
       users:
@@ -616,23 +615,6 @@ groups:
         - ~JeanMeche
 
   # =========================================================
-  #  Docs-infra
-  # =========================================================
-  docs-infra:
-    <<: *defaults
-    conditions:
-      - >
-        contains_any_globs(files, [
-          'aio/**/{*,.*}',
-          'aio/**/{*,.*}/**',
-        ])
-    reviewers:
-      users:
-        - AndrewKushnir
-        - thePunderWoman
-        - josephperrott
-
-  # =========================================================
   #  Angular DevTools
   # =========================================================
   devtools:
@@ -668,8 +650,8 @@ groups:
           '.ng-dev/**/{*,.*}',
           '.vscode/**/{*,.*}',
           '.yarn/**/{*,.*}',
-          'docs/*.md',
-          'docs/images/**/{*,.*}',
+          'contributing-docs/*.md',
+          'contributing-docs/images/**/{*,.*}',
           'goldens/{*,.*}',
           'goldens/public-api/manage.js',
           'modules/{*,.*}',
@@ -714,7 +696,6 @@ groups:
       - >
         contains_any_globs(files.exclude("goldens/public-api/manage.js"), [
           'goldens/public-api/**/{*,.*}',
-          'docs/NAMING.md',
           ])
     reviewers:
       users:
@@ -822,9 +803,6 @@ groups:
         - dylhunn # Dylan Hunn
         - AndrewKushnir # Andrew Kushnir
         - atscott # Andrew Scott
-    reviews:
-      required: 1
-      reviewed_for: optional
     labels:
       pending: 'requires: TGP'
       approved: 'requires: TGP'
@@ -850,13 +828,9 @@ groups:
         - mturco # Matt Turco
         - neonstalwart # Ben Hockey
         - nicholasyu-google # Nicholas Yu
-        - emspishak # Eric Spishak-Thomas
         - iteriani # Thomas Nguyen
         - tbondwilkinson # Tom Wilkinson
         - rahatarmanahmed # Rahat Ahmed
-    reviews:
-      required: 1
-      reviewed_for: optional
     labels:
       pending: 'requires: TGP'
       approved: 'requires: TGP'

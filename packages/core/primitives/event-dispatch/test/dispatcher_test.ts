@@ -6,24 +6,170 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Dispatcher, Replayer} from '../src/dispatcher';
-import {ActionInfo, createEventInfo, EventInfo, EventInfoWrapper,} from '../src/event_info';
-import {createEvent} from '../src/replay';
+import {ActionInfo, createEventInfo, EventInfoWrapper} from '../src/event_info';
+import {Dispatcher, registerDispatcher, Replayer} from '../src/dispatcher';
+import {addDeferredA11yClickSupport, EventContract} from '../src/eventcontract';
+import {EventContractContainer} from '../src/event_contract_container';
+import {safeElement, testonlyHtml} from './html';
 
-function createMockClickEvent() {
-  return createEvent({type: 'click'} as Event);
+const domContent = `
+<div id="anchor-click-container">
+  <a id="anchor-click-action-element" href="javascript:void(0);" jsaction="handleClick">
+    <span id="anchor-click-target-element"></span>
+  </a>
+</div>
+
+<div id="anchor-clickmod-container">
+  <a id="anchor-clickmod-action-element" href="javascript:void(0);" jsaction="clickmod: handleClickMod">
+    <span id="anchor-clickmod-target-element"></span>
+  </a>
+</div>
+
+<div id="clickmod-container">
+  <div id="clickmod-action-element" jsaction="clickmod:handleClickMod">
+    <div id="clickmod-target-element"></div>
+  </div>
+</div>
+
+<div id="a11y-anchor-click-container">
+  <a id="a11y-anchor-click-action-element" href="javascript:void(0);" jsaction="handleClick">
+    <span id="a11y-anchor-click-target-element" tabindex="0"></span>
+  </a>
+</div>
+`;
+
+function getRequiredElementById(id: string) {
+  const element = document.getElementById(id);
+  expect(element).not.toBeNull();
+  return element!;
+}
+
+function createEventContract({
+  container,
+  eventTypes,
+  exportAddA11yClickSupport = false,
+}: {
+  container: Element;
+  eventTypes: Array<string | [string, string]>;
+  exportAddA11yClickSupport?: boolean;
+}): EventContract {
+  const eventContract = new EventContract(new EventContractContainer(container));
+  if (exportAddA11yClickSupport) {
+    eventContract.exportAddA11yClickSupport();
+  }
+  for (const eventType of eventTypes) {
+    if (typeof eventType === 'string') {
+      eventContract.addEvent(eventType);
+    } else {
+      const [aliasedEventType, aliasEventType] = eventType;
+      eventContract.addEvent(aliasedEventType, aliasEventType);
+    }
+  }
+  return eventContract;
+}
+
+function createClickEvent() {
+  return new MouseEvent('click', {bubbles: true, cancelable: true});
+}
+
+function dispatchMouseEvent(
+  target: Element,
+  {
+    type = 'click',
+    ctrlKey = false,
+    altKey = false,
+    shiftKey = false,
+    metaKey = false,
+    relatedTarget = null,
+  }: {
+    type?: string;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+    relatedTarget?: Element | null;
+  } = {},
+) {
+  // createEvent/initMouseEvent is used to support IE11
+  // tslint:disable:deprecation
+  const event = document.createEvent('MouseEvent');
+  event.initMouseEvent(
+    type,
+    true,
+    true,
+    window,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    metaKey,
+    0,
+    relatedTarget,
+  );
+  // tslint:enable:deprecation
+  spyOn(event, 'preventDefault').and.callThrough();
+  target.dispatchEvent(event);
+  return event;
+}
+
+function dispatchKeyboardEvent(
+  target: Element,
+  {
+    type = 'keydown',
+    key = '',
+    location = 0,
+    ctrlKey = false,
+    altKey = false,
+    shiftKey = false,
+    metaKey = false,
+  }: {
+    type?: string;
+    key?: string;
+    location?: number;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+  } = {},
+) {
+  // createEvent/initKeyboardEvent is used to support IE11
+  // tslint:disable:deprecation
+  const event = document.createEvent('KeyboardEvent');
+  event.initKeyboardEvent(
+    type,
+    true,
+    true,
+    window,
+    key,
+    location,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    metaKey,
+  );
+  // tslint:enable:deprecation
+  // This is necessary as Chrome does not respect the key parameter in
+  // `initKeyboardEvent`.
+  Object.defineProperty(event, 'key', {value: key});
+  spyOn(event, 'preventDefault').and.callThrough();
+  target.dispatchEvent(event);
+  return event;
 }
 
 function createTestActionInfo({
-  name = 'foo.bar',
+  name = 'handleClick',
   element = document.createElement('div'),
 } = {}): ActionInfo {
   return {name, element};
 }
 
-function createTestEventInfo({
+function createTestEventInfoWrapper({
   eventType = 'click',
-  event = createMockClickEvent(),
+  event = createClickEvent(),
   targetElement = document.createElement('div'),
   container = document.createElement('div'),
   timestamp = 0,
@@ -37,284 +183,248 @@ function createTestEventInfo({
   timestamp?: number;
   action?: ActionInfo;
   isReplay?: boolean;
-} = {}): EventInfo {
-  return createEventInfo({
-    event,
-    eventType,
-    targetElement,
-    container,
-    timestamp,
-    action,
-    isReplay,
-  });
+} = {}): EventInfoWrapper {
+  return new EventInfoWrapper(
+    createEventInfo({
+      event,
+      eventType,
+      targetElement,
+      container,
+      timestamp,
+      action,
+      isReplay,
+    }),
+  );
 }
 
-describe('dispatcher test.ts', () => {
-  it('dispatches to registered EventInfo handler', () => {
-    const actionElement = document.createElement('div');
+describe('Dispatcher', () => {
+  beforeEach(() => {
+    safeElement.setInnerHtml(document.body, testonlyHtml(domContent));
 
-    let eventInfo!: EventInfoWrapper;
-    const actionHandler = (event: EventInfoWrapper) => {
-      eventInfo = event;
-    };
-
-    const dispatcher = new Dispatcher();
-    const actions = {'bar': actionHandler};
-    dispatcher.registerEventInfoHandlers('foo', null, actions);
-
-    dispatcher.dispatch(
-        createTestEventInfo({
-          action: createTestActionInfo({element: actionElement}),
-        }),
-    );
-    expect(eventInfo).not.toBeNull();
-    expect(eventInfo.getEventType()).toBe(createMockClickEvent().type);
-    expect(eventInfo.getAction()!.element).toBe(actionElement);
+    // Normalize timestamp.
+    spyOn(Date, 'now').and.returnValue(0);
   });
 
-  it('dispatches preferentially to delegated EventInfo handler', () => {
-    const actionElement = document.createElement('div');
+  it('dispatches to dispatchDelegate', () => {
+    const dispatchDelegate =
+      jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatchDelegate');
+    const dispatcher = new Dispatcher(dispatchDelegate);
+    const eventInfoWrapper = createTestEventInfoWrapper();
 
-    const eventInfoHandler1 = jasmine.createSpy('eventInfoHandler1');
-    const getEventInfoHandler = () => eventInfoHandler1;
-    const eventInfoHandler2 = jasmine.createSpy('eventInfoHandler2');
+    dispatcher.dispatch(eventInfoWrapper.eventInfo);
 
-    const dispatcher = new Dispatcher(/* getHandler= */ getEventInfoHandler);
-    const eventInfoHandlers = {'bar': eventInfoHandler2};
-    dispatcher.registerEventInfoHandlers('bar', null, eventInfoHandlers);
-
-    dispatcher.dispatch(
-        createTestEventInfo({
-          action: createTestActionInfo({element: actionElement}),
-        }),
-    );
-    expect(eventInfoHandler1).toHaveBeenCalled();
-    expect(eventInfoHandler2).not.toHaveBeenCalled();
+    expect(dispatchDelegate).toHaveBeenCalledWith(eventInfoWrapper);
   });
 
-  it('registered EventInfo handlers are found with hasAction', () => {
-    const dispatcher = new Dispatcher();
+  it('replays to dispatchDelegate', async () => {
+    const dispatchDelegate =
+      jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatchDelegate');
+    const dispatcher = new Dispatcher(dispatchDelegate);
+    const eventInfoWrappers = [
+      createTestEventInfoWrapper({isReplay: true}),
+      createTestEventInfoWrapper({isReplay: true}),
+      createTestEventInfoWrapper({isReplay: true}),
+    ];
 
-    dispatcher.registerEventInfoHandlers('', null, {
-      'foo': () => {},
-      'bar': () => {},
-    });
-    expect(dispatcher.hasAction('foo')).toBe(true);
-    expect(dispatcher.hasAction('bar')).toBe(true);
-    expect(dispatcher.hasAction('baz')).toBe(false);
+    for (const eventInfoWrapper of eventInfoWrappers) {
+      dispatcher.dispatch(eventInfoWrapper.eventInfo);
+    }
+
+    await Promise.resolve();
+
+    expect(dispatchDelegate).toHaveBeenCalledTimes(3);
+    for (let i = 0; i < eventInfoWrappers.length; i++) {
+      expect(dispatchDelegate.calls.argsFor(i)).toEqual([eventInfoWrappers[i]]);
+    }
   });
 
-  it('EventInfo handlers can be unregistered', () => {
-    const dispatcher = new Dispatcher();
-
-    dispatcher.registerEventInfoHandlers('prefix', null, {
-      'clickaction': () => {},
-    });
-    dispatcher.registerEventInfoHandlers('', null, {'fooaction': () => {}});
-    expect(dispatcher.hasAction('prefix.clickaction')).toBe(true);
-    expect(dispatcher.hasAction('fooaction')).toBe(true);
-
-    dispatcher.unregisterHandler('prefix', 'clickaction');
-    expect(dispatcher.hasAction('prefix.clickaction')).toBe(false);
-
-    dispatcher.unregisterHandler('', 'fooaction');
-    expect(dispatcher.hasAction('fooaction')).toBe(false);
-  });
-
-  async function waitForEventReplayer(eventReplayer: jasmine.Spy) {
-    await new Promise((resolve) => {
-      eventReplayer.and.callFake(resolve);
-    });
-  }
-
-  it('global event dispatch is not replayed', async () => {
-    const dispatcher = new Dispatcher();
-    const eventReplayer = jasmine.createSpy('eventReplayer');
-    dispatcher.setEventReplayer(eventReplayer);
-    dispatcher.registerEventInfoHandlers('foo', null, {'bar': () => {}});
-    const replayed = waitForEventReplayer(eventReplayer);
-
-    await expectAsync(replayed).toBePending();
-
-    const eventInfo1 = createTestEventInfo({isReplay: true});
-    dispatcher.dispatch(eventInfo1, /* globalDispatch= */ true);
-
-    await expectAsync(replayed).toBePending();
-  });
-
-  function expectEventReplayerToHaveBeenCalledWith(
-      eventReplayer: jasmine.Spy<Replayer>,
-      expectedEventInfos: EventInfo[],
-      expectedDispatcher: Dispatcher,
-  ) {
-    const args = eventReplayer.calls.mostRecent().args;
-    expect(args.length).toBe(2);
-    const [eventInfoWrappers, dispatcher] = args;
-    expect(
-        eventInfoWrappers.map((eventInfoWrapper) => eventInfoWrapper.eventInfo),
-        )
-        .toEqual(expectedEventInfos);
-    expect(dispatcher).toBe(expectedDispatcher);
-  }
-
-  it('events are collected and replayed', async () => {
-    const dispatcher = new Dispatcher();
+  it('replays to event replayer', async () => {
+    const dispatchDelegate =
+      jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatchDelegate');
     const eventReplayer = jasmine.createSpy<Replayer>('eventReplayer');
-    dispatcher.setEventReplayer(eventReplayer);
-    dispatcher.registerEventInfoHandlers('foo', null, {'bar': () => {}});
-    const replayed = waitForEventReplayer(eventReplayer);
+    const dispatcher = new Dispatcher(dispatchDelegate, {eventReplayer});
+    const eventInfoWrappers = [
+      createTestEventInfoWrapper({isReplay: true}),
+      createTestEventInfoWrapper({isReplay: true}),
+      createTestEventInfoWrapper({isReplay: true}),
+    ];
 
-    await expectAsync(replayed).toBePending();
+    for (const eventInfoWrapper of eventInfoWrappers) {
+      dispatcher.dispatch(eventInfoWrapper.eventInfo);
+    }
 
-    const eventInfo1 = createTestEventInfo({isReplay: true});
-    const eventInfo2 = createTestEventInfo({isReplay: true});
-    dispatcher.dispatch(eventInfo1);
-    dispatcher.dispatch(eventInfo2);
+    await Promise.resolve();
 
-    await expectAsync(replayed).toBeResolved();
-    expectEventReplayerToHaveBeenCalledWith(
-        eventReplayer,
-        [eventInfo1, eventInfo2],
-        dispatcher,
-    );
+    expect(dispatchDelegate).toHaveBeenCalledTimes(0);
+    expect(eventReplayer).toHaveBeenCalledWith(eventInfoWrappers);
   });
 
-  it('events are replayed when handlers are registered', async () => {
-    const dispatcher = new Dispatcher();
-    const eventReplayer = jasmine.createSpy<Replayer>('eventReplayer');
-    dispatcher.setEventReplayer(eventReplayer);
-    let replayed = waitForEventReplayer(eventReplayer);
+  it('prevents default for click on anchor child', () => {
+    const container = getRequiredElementById('anchor-click-container');
+    const actionElement = getRequiredElementById('anchor-click-action-element');
+    const targetElement = getRequiredElementById('anchor-click-target-element');
 
-    const eventInfo = createTestEventInfo({isReplay: true});
-    dispatcher.dispatch(eventInfo);
-
-    await expectAsync(replayed).toBeResolved();
-    expectEventReplayerToHaveBeenCalledWith(
-        eventReplayer,
-        [eventInfo],
-        dispatcher,
-    );
-
-    replayed = waitForEventReplayer(eventReplayer);
-
-    dispatcher.registerEventInfoHandlers('foo', null, {'bar': () => {}});
-
-    await expectAsync(replayed).toBeResolved();
-    expectEventReplayerToHaveBeenCalledWith(
-        eventReplayer,
-        [eventInfo],
-        dispatcher,
-    );
-  });
-
-  it('dispatches to registered global EventInfo handler', () => {
-    const handler = jasmine.createSpy('handler');
-    const dispatcher = new Dispatcher();
-    dispatcher.registerGlobalHandler('click', handler);
-
-    dispatcher.dispatch(createTestEventInfo(), true);
-
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not dispatch to non-matching registered global EventInfo handler', () => {
-    const handler = jasmine.createSpy('handler');
-    const dispatcher = new Dispatcher();
-    dispatcher.registerGlobalHandler('click', handler);
-
-    const eventInfo = createTestEventInfo({
-      event: createEvent({type: 'mousedown'} as Event),
-      eventType: 'mousedown',
+    const eventContract = createEventContract({
+      container,
+      eventTypes: ['click'],
     });
-    dispatcher.dispatch(eventInfo, true);
+    const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+    const dispatcher = new Dispatcher(dispatch);
+    registerDispatcher(eventContract, dispatcher);
 
-    expect(handler).not.toHaveBeenCalled();
+    const clickEvent = dispatchMouseEvent(targetElement);
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+    expect(eventInfoWrapper.getEventType()).toBe('click');
+    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
+    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+    expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
+    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+    expect(clickEvent.preventDefault).toHaveBeenCalled();
   });
 
-  it('allows propagation for events', () => {
-    const container = document.createElement('div');
-    window.document.body.appendChild(container);
-    const targetElement = document.createElement('div');
-    container.appendChild(targetElement);
-    const dispatcher = new Dispatcher();
+  it('prevents default for modified click on anchor child', () => {
+    const container = getRequiredElementById('anchor-clickmod-container');
+    const actionElement = getRequiredElementById('anchor-clickmod-action-element');
+    const targetElement = getRequiredElementById('anchor-clickmod-target-element');
 
-    const targetHandler = jasmine.createSpy('targetHandler');
-    targetHandler.and.callFake((event) => {
-      const eventInfo = createTestEventInfo({
-        eventType: 'click',
-        event,
-        targetElement,
+    const eventContract = createEventContract({
+      container,
+      eventTypes: ['click'],
+    });
+    const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+    const dispatcher = new Dispatcher(dispatch);
+    registerDispatcher(eventContract, dispatcher);
+
+    const clickEvent = dispatchMouseEvent(targetElement, {shiftKey: true});
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+    expect(eventInfoWrapper.getEventType()).toBe('clickmod');
+    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
+    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+    expect(eventInfoWrapper.getAction()?.name).toBe('handleClickMod');
+    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+    expect(clickEvent.preventDefault).toHaveBeenCalled();
+  });
+
+  it('does not prevent default for modified click on non-anchor child', () => {
+    const container = getRequiredElementById('clickmod-container');
+    const actionElement = getRequiredElementById('clickmod-action-element');
+    const targetElement = getRequiredElementById('clickmod-target-element');
+
+    const eventContract = createEventContract({
+      container,
+      eventTypes: ['click'],
+    });
+    const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+    const dispatcher = new Dispatcher(dispatch);
+    registerDispatcher(eventContract, dispatcher);
+
+    const clickEvent = dispatchMouseEvent(targetElement, {shiftKey: true});
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+    expect(eventInfoWrapper.getEventType()).toBe('clickmod');
+    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
+    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+    expect(eventInfoWrapper.getAction()?.name).toBe('handleClickMod');
+    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+    expect(clickEvent.preventDefault).not.toHaveBeenCalled();
+  });
+
+  describe('a11y click', () => {
+    beforeAll(() => {
+      EventContract.A11Y_CLICK_SUPPORT = true;
+    });
+    afterAll(() => {
+      EventContract.A11Y_CLICK_SUPPORT = false;
+    });
+
+    it('prevents default for enter key on anchor child', () => {
+      const container = getRequiredElementById('a11y-anchor-click-container');
+      const actionElement = getRequiredElementById('a11y-anchor-click-action-element');
+      const targetElement = getRequiredElementById('a11y-anchor-click-target-element');
+
+      const eventContract = createEventContract({
         container,
-        action: {name: 'foo', element: targetElement},
+        eventTypes: ['click'],
       });
-      dispatcher.dispatch(eventInfo, true);
+      const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+      const dispatcher = new Dispatcher(dispatch);
+      registerDispatcher(eventContract, dispatcher);
+
+      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
+
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+      expect(eventInfoWrapper.getEventType()).toBe('click');
+      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
+      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
+      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+      expect(keydownEvent.preventDefault).toHaveBeenCalled();
     });
-    targetElement.addEventListener('click', targetHandler);
-    const parentHandler = jasmine.createSpy('parentHandler');
-    container.addEventListener('click', parentHandler);
 
-    targetElement.click();
+    it('prevents default for enter key on anchor child', () => {
+      const container = getRequiredElementById('a11y-anchor-click-container');
+      const actionElement = getRequiredElementById('a11y-anchor-click-action-element');
+      const targetElement = getRequiredElementById('a11y-anchor-click-target-element');
 
-    expect(targetHandler).toHaveBeenCalled();
-    expect(parentHandler).toHaveBeenCalled();
-    window.document.body.removeChild(container);
+      const eventContract = createEventContract({
+        container,
+        eventTypes: ['click'],
+      });
+      const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+      const dispatcher = new Dispatcher(dispatch);
+      registerDispatcher(eventContract, dispatcher);
+
+      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
+
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+      expect(eventInfoWrapper.getEventType()).toBe('click');
+      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
+      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
+      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+      expect(keydownEvent.preventDefault).toHaveBeenCalled();
+    });
   });
 
-  it('allows propagation for events during global dispatch', () => {
-    const container = document.createElement('div');
-    window.document.body.appendChild(container);
-    const targetElement = document.createElement('div');
-    container.appendChild(targetElement);
-    const dispatcher = new Dispatcher(undefined, {stopPropagation: true});
+  describe('a11y click support deferred', () => {
+    it('prevents default for enter key on anchor child', () => {
+      const container = getRequiredElementById('a11y-anchor-click-container');
+      const actionElement = getRequiredElementById('a11y-anchor-click-action-element');
+      const targetElement = getRequiredElementById('a11y-anchor-click-target-element');
 
-    const targetHandler = jasmine.createSpy('targetHandler');
-    targetHandler.and.callFake((event) => {
-      const eventInfo = createTestEventInfo({
-        eventType: 'click',
-        event,
-        targetElement,
+      const eventContract = createEventContract({
         container,
-        action: {name: 'foo', element: targetElement},
+        exportAddA11yClickSupport: true,
+        eventTypes: ['click'],
       });
-      dispatcher.dispatch(eventInfo, /* globalDispatch= */ true);
+      addDeferredA11yClickSupport(eventContract);
+      const dispatch = jasmine.createSpy<(eventInfoWrapper: EventInfoWrapper) => void>('dispatch');
+      const dispatcher = new Dispatcher(dispatch);
+      registerDispatcher(eventContract, dispatcher);
+
+      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
+
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const eventInfoWrapper = dispatch.calls.mostRecent().args[0];
+      expect(eventInfoWrapper.getEventType()).toBe('click');
+      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
+      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
+      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+
+      expect(keydownEvent.preventDefault).toHaveBeenCalled();
     });
-    targetElement.addEventListener('click', targetHandler);
-    const parentHandler = jasmine.createSpy('parentHandler');
-    container.addEventListener('click', parentHandler);
-
-    targetElement.click();
-
-    expect(targetHandler).toHaveBeenCalled();
-    expect(parentHandler).toHaveBeenCalled();
-    window.document.body.removeChild(container);
-  });
-
-  it('stops propagation for events', () => {
-    const container = document.createElement('div');
-    window.document.body.appendChild(container);
-    const targetElement = document.createElement('div');
-    container.appendChild(targetElement);
-    const dispatcher = new Dispatcher(undefined, {stopPropagation: true});
-
-    const targetHandler = jasmine.createSpy('targetHandler');
-    targetHandler.and.callFake((event) => {
-      const eventInfo = createTestEventInfo({
-        eventType: 'click',
-        event,
-        targetElement,
-        container,
-        action: {name: 'foo', element: targetElement},
-      });
-      dispatcher.dispatch(eventInfo);
-    });
-    targetElement.addEventListener('click', targetHandler);
-    const parentHandler = jasmine.createSpy('parentHandler');
-    container.addEventListener('click', parentHandler);
-
-    targetElement.click();
-
-    expect(targetHandler).toHaveBeenCalled();
-    expect(parentHandler).not.toHaveBeenCalled();
-    window.document.body.removeChild(container);
   });
 });

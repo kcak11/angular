@@ -358,6 +358,15 @@ export enum ErrorCode {
    */
   DEFERRED_DEPENDENCY_IMPORTED_EAGERLY = 8014,
 
+  /** An expression is trying to write to an `@let` declaration. */
+  ILLEGAL_LET_WRITE = 8015,
+
+  /** An expression is trying to read an `@let` before it has been defined. */
+  LET_USED_BEFORE_DEFINITION = 8016,
+
+  /** Multiple `@let` declarations were defined with the same name within a scope. */
+  DUPLICATE_LET_DECLARATION = 8017,
+
   /**
    * A two way binding in a template has an incorrect syntax,
    * parentheses outside brackets. For example:
@@ -434,7 +443,6 @@ export enum ErrorCode {
    * When the type of foo doesn't include `null` or `undefined`.
    */
   OPTIONAL_CHAIN_NOT_NULLABLE = 8107,
-
 
   /**
    * `ngSkipHydration` should not be a binding (it should be a static attribute).

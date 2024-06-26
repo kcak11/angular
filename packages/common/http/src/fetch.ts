@@ -13,13 +13,13 @@ import {HttpBackend} from './backend';
 import {HttpHeaders} from './headers';
 import {HttpRequest} from './request';
 import {
+  HTTP_STATUS_CODE_OK,
   HttpDownloadProgressEvent,
   HttpErrorResponse,
   HttpEvent,
   HttpEventType,
   HttpHeaderResponse,
   HttpResponse,
-  HttpStatusCode,
 } from './response';
 
 const XSSI_PREFIX = /^\)\]\}',?\n/;
@@ -180,7 +180,7 @@ export class FetchBackend implements HttpBackend {
 
     // Same behavior as the XhrBackend
     if (status === 0) {
-      status = body ? HttpStatusCode.Ok : 0;
+      status = body ? HTTP_STATUS_CODE_OK : 0;
     }
 
     // ok determines whether the response will be transmitted on the event or
@@ -245,10 +245,12 @@ export class FetchBackend implements HttpBackend {
     req.headers.forEach((name, values) => (headers[name] = values.join(',')));
 
     // Add an Accept header if one isn't present already.
-    headers['Accept'] ??= 'application/json, text/plain, */*';
+    if (!req.headers.has('Accept')) {
+      headers['Accept'] = 'application/json, text/plain, */*';
+    }
 
     // Auto-detect the Content-Type header if one isn't present already.
-    if (!headers['Content-Type']) {
+    if (!req.headers.has('Content-Type')) {
       const detectedType = req.detectContentTypeHeader();
       // Sometimes Content-Type detection fails.
       if (detectedType !== null) {

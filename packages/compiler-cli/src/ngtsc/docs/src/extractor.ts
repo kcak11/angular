@@ -13,22 +13,32 @@ import {isNamedClassDeclaration, TypeScriptReflectionHost} from '../../reflectio
 
 import {extractClass, extractInterface} from './class_extractor';
 import {extractConstant, isSyntheticAngularConstant} from './constant_extractor';
-import {extractorDecorator, isDecoratorDeclaration, isDecoratorOptionsInterface} from './decorator_extractor';
-import {DocEntry} from './entities';
+import {
+  extractorDecorator,
+  isDecoratorDeclaration,
+  isDecoratorOptionsInterface,
+} from './decorator_extractor';
+import {DocEntry, DocEntryWithSourceInfo} from './entities';
 import {extractEnum} from './enum_extractor';
 import {isAngularPrivateName} from './filters';
 import {FunctionExtractor} from './function_extractor';
-import {extractInitializerApiFunction, isInitializerApiFunction} from './initializer_api_function_extractor';
+import {
+  extractInitializerApiFunction,
+  isInitializerApiFunction,
+} from './initializer_api_function_extractor';
 import {extractTypeAlias} from './type_alias_extractor';
 
-type DeclarationWithExportName = readonly[string, ts.Declaration];
+type DeclarationWithExportName = readonly [string, ts.Declaration];
 
 /**
  * Extracts all information from a source file that may be relevant for generating
  * public API documentation.
  */
 export class DocsExtractor {
-  constructor(private typeChecker: ts.TypeChecker, private metadataReader: MetadataReader) {}
+  constructor(
+    private typeChecker: ts.TypeChecker,
+    private metadataReader: MetadataReader,
+  ) {}
 
   /**
    * Gets the set of all documentable entries from a source file, including
@@ -36,7 +46,7 @@ export class DocsExtractor {
    *
    * @param sourceFile The file from which to extract documentable entries.
    */
-  extractAll(sourceFile: ts.SourceFile): DocEntry[] {
+  extractAll(sourceFile: ts.SourceFile, rootDir: string): DocEntry[] {
     const entries: DocEntry[] = [];
 
     const exportedDeclarations = this.getExportedDeclarations(sourceFile);
@@ -48,6 +58,19 @@ export class DocsExtractor {
 
       const entry = this.extractDeclaration(node);
       if (entry && !isIgnoredDocEntry(entry)) {
+        // The source file parameter is the package entry: the index.ts
+        // We want the real source file of the declaration.
+        const realSourceFile = node.getSourceFile();
+
+        // Set the source code references for the extracted entry.
+        (entry as DocEntryWithSourceInfo).source = {
+          filePath: getRelativeFilePath(realSourceFile, rootDir),
+
+          // Start & End are off by 1
+          startLine: ts.getLineAndCharacterOfPosition(realSourceFile, node.getStart()).line + 1,
+          endLine: ts.getLineAndCharacterOfPosition(realSourceFile, node.getEnd()).line + 1,
+        };
+
         // The exported name of an API may be different from its declaration name, so
         // use the declaration name.
         entries.push({...entry, name: exportName});
@@ -58,7 +81,7 @@ export class DocsExtractor {
   }
 
   /** Extract the doc entry for a single declaration. */
-  private extractDeclaration(node: ts.Declaration): DocEntry|null {
+  private extractDeclaration(node: ts.Declaration): DocEntry | null {
     // Ignore anonymous classes.
     if (isNamedClassDeclaration(node)) {
       return extractClass(node, this.metadataReader, this.typeChecker);
@@ -79,8 +102,9 @@ export class DocsExtractor {
     }
 
     if (ts.isVariableDeclaration(node) && !isSyntheticAngularConstant(node)) {
-      return isDecoratorDeclaration(node) ? extractorDecorator(node, this.typeChecker) :
-                                            extractConstant(node, this.typeChecker);
+      return isDecoratorDeclaration(node)
+        ? extractorDecorator(node, this.typeChecker)
+        : extractConstant(node, this.typeChecker);
     }
 
     if (ts.isTypeAliasDeclaration(node)) {
@@ -102,9 +126,9 @@ export class DocsExtractor {
     const exportedDeclarationMap = reflector.getExportsOfModule(sourceFile);
 
     // Augment each declaration with the exported name in the public API.
-    let exportedDeclarations =
-        Array.from(exportedDeclarationMap?.entries() ?? [])
-            .map(([exportName, declaration]) => [exportName, declaration.node] as const);
+    let exportedDeclarations = Array.from(exportedDeclarationMap?.entries() ?? []).map(
+      ([exportName, declaration]) => [exportName, declaration.node] as const,
+    );
 
     // Cache the declaration count since we're going to be appending more declarations as
     // we iterate.
@@ -116,7 +140,9 @@ export class DocsExtractor {
       const [exportName, declaration] = exportedDeclarations[i];
       if (ts.isFunctionDeclaration(declaration)) {
         const extractor = new FunctionExtractor(exportName, declaration, this.typeChecker);
-        const overloads = extractor.getOverloads().map(overload => [exportName, overload] as const);
+        const overloads = extractor
+          .getOverloads()
+          .map((overload) => [exportName, overload] as const);
 
         exportedDeclarations.push(...overloads);
       }
@@ -125,7 +151,8 @@ export class DocsExtractor {
     // Sort the declaration nodes into declaration position because their order is lost in
     // reading from the export map. This is primarily useful for testing and debugging.
     return exportedDeclarations.sort(
-        ([a, declarationA], [b, declarationB]) => declarationA.pos - declarationB.pos);
+      ([a, declarationA], [b, declarationB]) => declarationA.pos - declarationB.pos,
+    );
   }
 }
 
@@ -148,12 +175,20 @@ function isIgnoredInterface(node: ts.InterfaceDeclaration) {
  * never has JSDoc tags attached, but rather the parent variable statement.
  */
 function isIgnoredDocEntry(entry: DocEntry): boolean {
-  const isDocsPrivate = entry.jsdocTags.find(e => e.name === 'docsPrivate');
+  const isDocsPrivate = entry.jsdocTags.find((e) => e.name === 'docsPrivate');
   if (isDocsPrivate !== undefined && isDocsPrivate.comment === '') {
     throw new Error(
-        `Docs extraction: Entry "${entry.name}" is marked as ` +
-        `"@docsPrivate" but without reasoning.`);
+      `Docs extraction: Entry "${entry.name}" is marked as ` +
+        `"@docsPrivate" but without reasoning.`,
+    );
   }
 
   return isDocsPrivate !== undefined;
+}
+
+function getRelativeFilePath(sourceFile: ts.SourceFile, rootDir: string): string {
+  const fullPath = sourceFile.fileName;
+  const relativePath = fullPath.replace(rootDir, '');
+
+  return relativePath;
 }

@@ -6,19 +6,28 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Attribute as AccessibilityAttribute} from '../src/accessibility';
 import * as cache from '../src/cache';
-import {fireCustomEvent} from '../src/custom_events';
-import {EarlyEventContract, EarlyJsactionData} from '../src/earlyeventcontract';
-import {EventContractContainer, EventContractContainerManager,} from '../src/event_contract_container';
+import {
+  EarlyEventContract,
+  EarlyJsactionData,
+  EarlyJsactionDataContainer,
+} from '../src/earlyeventcontract';
+import {
+  EventContractContainer,
+  EventContractContainerManager,
+} from '../src/event_contract_container';
 import {EventContractMultiContainer} from '../src/event_contract_multi_container';
-import {EventInfo, EventInfoWrapper} from '../src/event_info';
+import {EventInfoWrapper} from '../src/event_info';
 import {EventType} from '../src/event_type';
-import {addDeferredA11yClickSupport, Dispatcher, EventContract,} from '../src/eventcontract';
-import {Property} from '../src/property';
+import {addDeferredA11yClickSupport, Dispatcher, EventContract} from '../src/eventcontract';
+import {OWNER} from '../src/property';
 import {Restriction} from '../src/restriction';
 
 import {safeElement, testonlyHtml} from './html';
+
+declare global {
+  interface Window extends EarlyJsactionDataContainer {}
+}
 
 const domContent = `
 <div id="container"></div>
@@ -88,21 +97,9 @@ const domContent = `
   </div>
 </div>
 
-<div id="custom-event-container">
-  <div id="custom-event-action-element" jsaction="custom-event:handleCustomEvent">
-    <div id="custom-event-target-element"></div>
-  </div>
-</div>
-
 <div id="anchor-click-container">
   <a id="anchor-click-action-element" href="javascript:void(0);" jsaction="handleClick">
     <span id="anchor-click-target-element"></span>
-  </a>
-</div>
-
-<div id="anchor-clickmod-container">
-  <a id="anchor-clickmod-action-element" href="javascript:void(0);" jsaction="clickmod: handleClickMod">
-    <span id="anchor-clickmod-target-element"></span>
   </a>
 </div>
 
@@ -172,11 +169,9 @@ const domContent = `
   </div>
 </div>
 
-<div id="jsnamespace-container">
-  <div id="jsnamespace-namespace-element" jsnamespace="namespace">
-    <div id="jsnamespace-action-element" jsaction="handleClick">
-      <div id="jsnamespace-target-element"></div>
-    </div>
+<div id="focus-container">
+  <div id="focus-action-element" jsaction="focus:handleFocus">
+    <button id="focus-target-element">Focus Button</button>
   </div>
 </div>
 `;
@@ -187,10 +182,11 @@ function getRequiredElementById(id: string) {
   return element!;
 }
 
-function createEventContractMultiContainer(container: Element) {
-  const eventContractContainerManager = new EventContractMultiContainer(
-      EventContract.STOP_PROPAGATION,
-  );
+function createEventContractMultiContainer(
+  container: Element,
+  {stopPropagation = false}: {stopPropagation?: boolean} = {},
+) {
+  const eventContractContainerManager = new EventContractMultiContainer(stopPropagation);
   eventContractContainerManager.addContainer(container);
   return eventContractContainerManager;
 }
@@ -202,7 +198,8 @@ function createEventContract({
   dispatcher,
 }: {
   eventContractContainerManager: EventContractContainerManager;
-  exportAddA11yClickSupport?: boolean; eventTypes: Array<string|[string, string]>;
+  exportAddA11yClickSupport?: boolean;
+  eventTypes: Array<string | [string, string]>;
   dispatcher?: jasmine.Spy<Dispatcher>;
 }): EventContract {
   const eventContract = new EventContract(eventContractContainerManager);
@@ -218,57 +215,52 @@ function createEventContract({
     }
   }
   if (dispatcher) {
-    eventContract.registerDispatcher(
-        dispatcher,
-        Restriction.I_AM_THE_JSACTION_FRAMEWORK,
-    );
+    eventContract.registerDispatcher(dispatcher, Restriction.I_AM_THE_JSACTION_FRAMEWORK);
   }
   return eventContract;
 }
 
-function getLastDispatchedEventInfoWrapper(
-    dispatcher: jasmine.Spy<Dispatcher>,
-    ): EventInfoWrapper {
+function getLastDispatchedEventInfoWrapper(dispatcher: jasmine.Spy<Dispatcher>): EventInfoWrapper {
   return new EventInfoWrapper(dispatcher.calls.mostRecent().args[0]);
 }
 
 function dispatchMouseEvent(
-    target: Element,
-    {
-      type = 'click',
-      ctrlKey = false,
-      altKey = false,
-      shiftKey = false,
-      metaKey = false,
-      relatedTarget = null,
-    }: {
-      type?: string;
-      ctrlKey?: boolean;
-      altKey?: boolean;
-      shiftKey?: boolean;
-      metaKey?: boolean;
-      relatedTarget?: Element | null;
-    } = {},
+  target: Element,
+  {
+    type = 'click',
+    ctrlKey = false,
+    altKey = false,
+    shiftKey = false,
+    metaKey = false,
+    relatedTarget = null,
+  }: {
+    type?: string;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+    relatedTarget?: Element | null;
+  } = {},
 ) {
   // createEvent/initMouseEvent is used to support IE11
   // tslint:disable:deprecation
   const event = document.createEvent('MouseEvent');
   event.initMouseEvent(
-      type,
-      true,
-      true,
-      window,
-      0,
-      0,
-      0,
-      0,
-      0,
-      ctrlKey,
-      altKey,
-      shiftKey,
-      metaKey,
-      0,
-      relatedTarget,
+    type,
+    true,
+    true,
+    window,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    metaKey,
+    0,
+    relatedTarget,
   );
   // tslint:enable:deprecation
   spyOn(event, 'preventDefault').and.callThrough();
@@ -277,49 +269,44 @@ function dispatchMouseEvent(
 }
 
 function dispatchKeyboardEvent(
-    target: Element,
-    {
-      type = 'keydown',
-      key = '',
-      location = 0,
-      ctrlKey = false,
-      altKey = false,
-      shiftKey = false,
-      metaKey = false,
-      skipA11yCheck = false,
-    }: {
-      type?: string;
-      key?: string;
-      location?: number;
-      ctrlKey?: boolean;
-      altKey?: boolean;
-      shiftKey?: boolean;
-      metaKey?: boolean;
-      skipA11yCheck?: boolean;
-    } = {},
+  target: Element,
+  {
+    type = 'keydown',
+    key = '',
+    location = 0,
+    ctrlKey = false,
+    altKey = false,
+    shiftKey = false,
+    metaKey = false,
+  }: {
+    type?: string;
+    key?: string;
+    location?: number;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+  } = {},
 ) {
   // createEvent/initKeyboardEvent is used to support IE11
   // tslint:disable:deprecation
   const event = document.createEvent('KeyboardEvent');
   event.initKeyboardEvent(
-      type,
-      true,
-      true,
-      window,
-      key,
-      location,
-      ctrlKey,
-      altKey,
-      shiftKey,
-      metaKey,
+    type,
+    true,
+    true,
+    window,
+    key,
+    location,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    metaKey,
   );
   // tslint:enable:deprecation
   // This is necessary as Chrome does not respect the key parameter in
   // `initKeyboardEvent`.
   Object.defineProperty(event, 'key', {value: key});
-  if (skipA11yCheck) {
-    event[AccessibilityAttribute.SKIP_A11Y_CHECK] = true;
-  }
   spyOn(event, 'preventDefault').and.callThrough();
   target.dispatchEvent(event);
   return event;
@@ -329,11 +316,7 @@ describe('EventContract', () => {
   beforeEach(() => {
     safeElement.setInnerHtml(document.body, testonlyHtml(domContent));
     EventContract.A11Y_CLICK_SUPPORT = false;
-    EventContract.A11Y_SUPPORT_IN_DISPATCHER = false;
     EventContract.MOUSE_SPECIAL_SUPPORT = false;
-    EventContract.STOP_PROPAGATION = false;
-    EventContractMultiContainer.STOP_PROPAGATION = false;
-    EventContract.CUSTOM_EVENT_SUPPORT = false;
 
     // Normalize timestamp.
     spyOn(Date, 'now').and.returnValue(0);
@@ -345,9 +328,7 @@ describe('EventContract', () => {
     const addEventListenerSpy = spyOn(container, 'addEventListener');
     const addEventListenerSpy2 = spyOn(container2, 'addEventListener');
 
-    const eventContractContainerManager = new EventContractMultiContainer(
-        EventContract.STOP_PROPAGATION,
-    );
+    const eventContractContainerManager = new EventContractMultiContainer();
     const eventContract = new EventContract(eventContractContainerManager);
     eventContract.addEvent('click');
 
@@ -356,12 +337,14 @@ describe('EventContract', () => {
     eventContractContainerManager.addContainer(container);
     eventContractContainerManager.addContainer(container2);
 
-    const registeredEventTypes =
-        addEventListenerSpy.calls.allArgs().map(([eventType]) => eventType);
+    const registeredEventTypes = addEventListenerSpy.calls
+      .allArgs()
+      .map(([eventType]) => eventType);
     expect(registeredEventTypes).toEqual(['click']);
 
-    const registeredEventTypes2 =
-        addEventListenerSpy2.calls.allArgs().map(([eventType]) => eventType);
+    const registeredEventTypes2 = addEventListenerSpy2.calls
+      .allArgs()
+      .map(([eventType]) => eventType);
     expect(registeredEventTypes2).toEqual(['click']);
   });
 
@@ -371,9 +354,7 @@ describe('EventContract', () => {
     const addEventListenerSpy = spyOn(container, 'addEventListener');
     const addEventListenerSpy2 = spyOn(container2, 'addEventListener');
 
-    const eventContractContainerManager = new EventContractMultiContainer(
-        EventContract.STOP_PROPAGATION,
-    );
+    const eventContractContainerManager = new EventContractMultiContainer();
     const eventContract = new EventContract(eventContractContainerManager);
     eventContractContainerManager.addContainer(container);
     eventContractContainerManager.addContainer(container2);
@@ -383,12 +364,14 @@ describe('EventContract', () => {
 
     eventContract.addEvent('click');
 
-    const registeredEventTypes =
-        addEventListenerSpy.calls.allArgs().map(([eventType]) => eventType);
+    const registeredEventTypes = addEventListenerSpy.calls
+      .allArgs()
+      .map(([eventType]) => eventType);
     expect(registeredEventTypes).toEqual(['click']);
 
-    const registeredEventTypes2 =
-        addEventListenerSpy2.calls.allArgs().map(([eventType]) => eventType);
+    const registeredEventTypes2 = addEventListenerSpy2.calls
+      .allArgs()
+      .map(([eventType]) => eventType);
     expect(registeredEventTypes2).toEqual(['click']);
   });
 
@@ -396,15 +379,14 @@ describe('EventContract', () => {
     const container = getRequiredElementById('container');
     const addEventListenerSpy = spyOn(container, 'addEventListener');
 
-    const eventContractContainerManager = new EventContractMultiContainer(
-        EventContract.STOP_PROPAGATION,
-    );
+    const eventContractContainerManager = new EventContractMultiContainer();
     const eventContract = new EventContract(eventContractContainerManager);
     eventContract.addEvent('animationend', 'webkitanimationend');
     eventContractContainerManager.addContainer(container);
 
-    const registeredEventTypes =
-        addEventListenerSpy.calls.allArgs().map(([eventType]) => eventType);
+    const registeredEventTypes = addEventListenerSpy.calls
+      .allArgs()
+      .map(([eventType]) => eventType);
     expect(registeredEventTypes).toEqual(['webkitanimationend']);
   });
 
@@ -421,14 +403,11 @@ describe('EventContract', () => {
     const clickEvent = dispatchMouseEvent(targetElement);
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-    eventContract.registerDispatcher(
-        dispatcher,
-        Restriction.I_AM_THE_JSACTION_FRAMEWORK,
-    );
+    eventContract.registerDispatcher(dispatcher, Restriction.I_AM_THE_JSACTION_FRAMEWORK);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe(EventType.CLICK);
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -452,15 +431,16 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe(EventType.CLICK);
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
     expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
     expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
     expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+    expect(eventInfoWrapper.getResolved()).toBe(true);
   });
 
   it('dispatches event when targetElement is actionElement', () => {
@@ -476,9 +456,9 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe(EventType.CLICK);
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -489,12 +469,8 @@ describe('EventContract', () => {
 
   it('dispatch event to child and ignore parent', () => {
     const container = getRequiredElementById('parent-and-child-container');
-    const actionElement = getRequiredElementById(
-        'parent-and-child-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'parent-and-child-target-element',
-    );
+    const actionElement = getRequiredElementById('parent-and-child-action-element');
+    const targetElement = getRequiredElementById('parent-and-child-target-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -505,7 +481,7 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -518,7 +494,7 @@ describe('EventContract', () => {
     const container = getRequiredElementById('owner-click-container');
     const actionElement = getRequiredElementById('owner-click-action-element');
     const targetElement = getRequiredElementById('owner-click-target-element');
-    targetElement[Property.OWNER] = actionElement;
+    targetElement[OWNER] = actionElement;
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -529,7 +505,7 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -561,7 +537,7 @@ describe('EventContract', () => {
     // tslint:enable:deprecation
     targetElement.dispatchEvent(animationEndEvent);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('animationend');
     expect(eventInfoWrapper.getEvent()).toBe(animationEndEvent);
@@ -584,7 +560,7 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement, {shiftKey: true});
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('clickmod');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -607,7 +583,7 @@ describe('EventContract', () => {
 
     let clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     let eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -620,7 +596,7 @@ describe('EventContract', () => {
 
     clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -643,7 +619,7 @@ describe('EventContract', () => {
 
     let clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     let eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -658,7 +634,7 @@ describe('EventContract', () => {
 
     clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -669,12 +645,8 @@ describe('EventContract', () => {
 
   it('handles trailing semicolon in jsaction attribute', () => {
     const container = getRequiredElementById('trailing-semicolon-container');
-    const actionElement = getRequiredElementById(
-        'trailing-semicolon-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'trailing-semicolon-target-element',
-    );
+    const actionElement = getRequiredElementById('trailing-semicolon-action-element');
+    const targetElement = getRequiredElementById('trailing-semicolon-target-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -685,7 +657,7 @@ describe('EventContract', () => {
 
     const clickEvent = dispatchMouseEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -696,12 +668,8 @@ describe('EventContract', () => {
 
   it('handles jsaction attributes without action names, first action', () => {
     const container = getRequiredElementById('no-action-name-container');
-    const actionElement = getRequiredElementById(
-        'no-action-name-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'no-action-name-target-element',
-    );
+    const actionElement = getRequiredElementById('no-action-name-action-element');
+    const targetElement = getRequiredElementById('no-action-name-target-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -712,7 +680,7 @@ describe('EventContract', () => {
 
     const keydownEvent = dispatchKeyboardEvent(targetElement);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('keydown');
     expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
@@ -723,12 +691,8 @@ describe('EventContract', () => {
 
   it('handles jsaction attributes without action names, last action', () => {
     const container = getRequiredElementById('no-action-name-container');
-    const actionElement = getRequiredElementById(
-        'no-action-name-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'no-action-name-target-element',
-    );
+    const actionElement = getRequiredElementById('no-action-name-action-element');
+    const targetElement = getRequiredElementById('no-action-name-target-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -739,7 +703,7 @@ describe('EventContract', () => {
 
     const keyupEvent = dispatchKeyboardEvent(targetElement, {type: 'keyup'});
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('keyup');
     expect(eventInfoWrapper.getEvent()).toBe(keyupEvent);
@@ -750,9 +714,7 @@ describe('EventContract', () => {
 
   it('does not handle jsaction attributes without event type or action name', () => {
     const container = getRequiredElementById('no-action-name-container');
-    const targetElement = getRequiredElementById(
-        'no-action-name-target-element',
-    );
+    const targetElement = getRequiredElementById('no-action-name-target-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     createEventContract({
@@ -769,68 +731,6 @@ describe('EventContract', () => {
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
     expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
     expect(eventInfoWrapper.getAction()).toBeUndefined();
-  });
-
-  it('re-dispatches if dispatcher returns an `EventInfo`', () => {
-    const container = getRequiredElementById('a11y-click-keydown-container');
-    const actionElement = getRequiredElementById(
-        'a11y-click-keydown-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'a11y-click-keydown-target-element',
-    );
-
-    const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-    createEventContract({
-      eventContractContainerManager: new EventContractContainer(container),
-      eventTypes: ['click'],
-      dispatcher,
-    });
-
-    dispatcher.and.callFake((eventInfo: EventInfo) => {
-      const eventInfoWrapper = new EventInfoWrapper(eventInfo);
-      if (eventInfoWrapper.getEventType() === 'click') {
-        eventInfoWrapper.setEventType('keydown');
-        eventInfoWrapper.setAction(undefined);
-        return eventInfoWrapper.eventInfo;
-      }
-      return;
-    });
-
-    const clickEvent = dispatchMouseEvent(targetElement);
-
-    expect(dispatcher).toHaveBeenCalledTimes(4);
-    const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-    expect(eventInfoWrapper.getEventType()).toBe('keydown');
-    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-    expect(eventInfoWrapper.getAction()?.name).toBe('handleKeydown');
-    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-  });
-
-  it('re-dispatches only once if dispatcher returns an `EventInfo`', () => {
-    const container = getRequiredElementById('click-container');
-    const actionElement = getRequiredElementById('click-action-element');
-    const targetElement = getRequiredElementById('click-target-element');
-
-    const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-    createEventContract({
-      eventContractContainerManager: new EventContractContainer(container),
-      eventTypes: ['click'],
-      dispatcher,
-    });
-
-    dispatcher.and.callFake((eventInfo: EventInfo) => eventInfo);
-
-    const clickEvent = dispatchMouseEvent(targetElement);
-
-    expect(dispatcher).toHaveBeenCalledTimes(4);
-    const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-    expect(eventInfoWrapper.getEventType()).toBe('click');
-    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-    expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
   });
 
   it('dispatches event from shadow dom', () => {
@@ -855,7 +755,7 @@ describe('EventContract', () => {
 
     shadowChild.click();
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe('click');
     // Target element is set to the host from the event.
@@ -866,20 +766,12 @@ describe('EventContract', () => {
 
   it('cleanUp removes all event listeners and containers', () => {
     const container = getRequiredElementById('click-container');
-    const removeEventListenerSpy = spyOn(
-                                       container,
-                                       'removeEventListener',
-                                       )
-                                       .and.callThrough();
+    const removeEventListenerSpy = spyOn(container, 'removeEventListener').and.callThrough();
     const actionElement = getRequiredElementById('click-action-element');
 
     const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
     const eventContractContainerManager = new EventContractContainer(container);
-    const cleanUpSpy = spyOn(
-                           eventContractContainerManager,
-                           'cleanUp',
-                           )
-                           .and.callThrough();
+    const cleanUpSpy = spyOn(eventContractContainerManager, 'cleanUp').and.callThrough();
     const eventContract = createEventContract({
       eventContractContainerManager,
       eventTypes: ['click'],
@@ -887,6 +779,8 @@ describe('EventContract', () => {
     });
 
     eventContract.cleanUp();
+    // Should not add the click listener back.
+    eventContract.addEvent('click');
 
     actionElement.click();
 
@@ -917,7 +811,7 @@ describe('EventContract', () => {
 
     clickHandler('click', clickEvent, container);
 
-    expect(dispatcher).toHaveBeenCalledTimes(2);
+    expect(dispatcher).toHaveBeenCalledTimes(1);
     const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
     expect(eventInfoWrapper.getEventType()).toBe(EventType.CLICK);
     expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -935,128 +829,6 @@ describe('EventContract', () => {
     });
 
     expect(eventContract.handler(EventType.CLICK)).toBeUndefined();
-  });
-
-  describe('custom event', () => {
-    beforeEach(() => {
-      EventContract.CUSTOM_EVENT_SUPPORT = true;
-    });
-
-    it('dispatches event', () => {
-      const container = getRequiredElementById('custom-event-container');
-      const targetElement = getRequiredElementById(
-          'custom-event-target-element',
-      );
-      const actionElement = getRequiredElementById(
-          'custom-event-action-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['custom-event'],
-        dispatcher,
-      });
-
-      // createEvent/initEvent is used to support IE11
-      // tslint:disable:deprecation
-      const customEvent = document.createEvent('Event');
-      customEvent.initEvent('custom-event', true, true);
-      // tslint:enable:deprecation
-      targetElement.dispatchEvent(customEvent);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('custom-event');
-      expect(eventInfoWrapper.getEvent()).toBe(customEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleCustomEvent');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('dispatches event with data', () => {
-      const container = getRequiredElementById('custom-event-container');
-      const targetElement = getRequiredElementById(
-          'custom-event-target-element',
-      );
-      const actionElement = getRequiredElementById(
-          'custom-event-action-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['custom-event'],
-        dispatcher,
-      });
-
-      const data = {'test': 1};
-      fireCustomEvent(targetElement, 'custom-event', data);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('custom-event');
-      const customEvent = eventInfoWrapper.getEvent() as CustomEvent;
-      expect(customEvent.type).toBe(EventType.CUSTOM);
-      expect(customEvent.detail.data).toBe(data);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleCustomEvent');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-  });
-
-  it('prevents default for click on anchor child', () => {
-    const container = getRequiredElementById('anchor-click-container');
-    const actionElement = getRequiredElementById('anchor-click-action-element');
-    const targetElement = getRequiredElementById('anchor-click-target-element');
-
-    const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-    createEventContract({
-      eventContractContainerManager: new EventContractContainer(container),
-      eventTypes: ['click'],
-      dispatcher,
-    });
-
-    const clickEvent = dispatchMouseEvent(targetElement);
-
-    expect(dispatcher).toHaveBeenCalledTimes(2);
-    const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-    expect(eventInfoWrapper.getEventType()).toBe('click');
-    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-    expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-    expect(clickEvent.preventDefault).toHaveBeenCalled();
-  });
-
-  it('prevents default for modified click on anchor child', () => {
-    const container = getRequiredElementById('anchor-clickmod-container');
-    const actionElement = getRequiredElementById(
-        'anchor-clickmod-action-element',
-    );
-    const targetElement = getRequiredElementById(
-        'anchor-clickmod-target-element',
-    );
-
-    const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-    createEventContract({
-      eventContractContainerManager: new EventContractContainer(container),
-      eventTypes: ['click'],
-      dispatcher,
-    });
-
-    const clickEvent = dispatchMouseEvent(targetElement, {shiftKey: true});
-
-    expect(dispatcher).toHaveBeenCalledTimes(2);
-    const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-    expect(eventInfoWrapper.getEventType()).toBe('clickmod');
-    expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-    expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-    expect(eventInfoWrapper.getAction()?.name).toBe('handleClickMod');
-    expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-    expect(clickEvent.preventDefault).toHaveBeenCalled();
   });
 
   it('does not prevent default for click on anchor without dispatcher', () => {
@@ -1092,7 +864,7 @@ describe('EventContract', () => {
 
       const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
@@ -1115,9 +887,9 @@ describe('EventContract', () => {
 
       const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'a'});
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('keydown');
       expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
@@ -1126,43 +898,10 @@ describe('EventContract', () => {
       expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
     });
 
-    it('prevents default for enter key on anchor child', () => {
-      const container = getRequiredElementById('a11y-anchor-click-container');
-      const actionElement = getRequiredElementById(
-          'a11y-anchor-click-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-anchor-click-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-      expect(keydownEvent.preventDefault).toHaveBeenCalled();
-    });
-
     it('dispatches clickonly event', () => {
       const container = getRequiredElementById('a11y-clickonly-container');
-      const actionElement = getRequiredElementById(
-          'a11y-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-clickonly-target-element',
-      );
+      const actionElement = getRequiredElementById('a11y-clickonly-action-element');
+      const targetElement = getRequiredElementById('a11y-clickonly-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -1173,9 +912,9 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('clickonly');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1185,15 +924,9 @@ describe('EventContract', () => {
     });
 
     it('dispatches click event to click handler rather than clickonly', () => {
-      const container = getRequiredElementById(
-          'a11y-click-clickonly-container',
-      );
-      const actionElement = getRequiredElementById(
-          'a11y-click-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-click-clickonly-target-element',
-      );
+      const container = getRequiredElementById('a11y-click-clickonly-container');
+      const actionElement = getRequiredElementById('a11y-click-clickonly-action-element');
+      const targetElement = getRequiredElementById('a11y-click-clickonly-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -1204,195 +937,9 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-  });
-
-  describe('a11y click in dispatcher', () => {
-    beforeEach(() => {
-      EventContract.A11Y_SUPPORT_IN_DISPATCHER = true;
-    });
-
-    it('dispatches a11y keydown as maybe click event', () => {
-      const container = getRequiredElementById('a11y-click-container');
-      const actionElement = getRequiredElementById('a11y-click-action-element');
-      const targetElement = getRequiredElementById('a11y-click-target-element');
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType())
-          .toBe(
-              AccessibilityAttribute.MAYBE_CLICK_EVENT_TYPE,
-          );
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('dispatches non-a11y keydown as maybe click event', () => {
-      const container = getRequiredElementById('a11y-click-keydown-container');
-      const actionElement = getRequiredElementById(
-          'a11y-click-keydown-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-click-keydown-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click', 'keydown'],
-        dispatcher,
-      });
-
-      // Pressing the 'a' key is not an a11y click.
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'a'});
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType())
-          .toBe(
-              AccessibilityAttribute.MAYBE_CLICK_EVENT_TYPE,
-          );
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('dispatches a11y keydown with SKIP_A11Y_CHECK as click', () => {
-      const container = getRequiredElementById('a11y-click-keydown-container');
-      const actionElement = getRequiredElementById(
-          'a11y-click-keydown-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-click-keydown-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click', 'keydown'],
-        dispatcher,
-      });
-
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {
-        key: 'Enter',
-        skipA11yCheck: true,
-      });
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('keydown');
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleKeydown');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('does not prevent default for enter key on anchor child', () => {
-      const container = getRequiredElementById('a11y-anchor-click-container');
-      const actionElement = getRequiredElementById(
-          'a11y-anchor-click-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-anchor-click-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType())
-          .toBe(
-              AccessibilityAttribute.MAYBE_CLICK_EVENT_TYPE,
-          );
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-      expect(keydownEvent.defaultPrevented).toBe(false);
-    });
-
-    it('dispatches clickonly event', () => {
-      const container = getRequiredElementById('a11y-clickonly-container');
-      const actionElement = getRequiredElementById(
-          'a11y-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-clickonly-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        exportAddA11yClickSupport: true,
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('clickonly');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClickOnly');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('dispatches click event to click handler rather than clickonly', () => {
-      const container = getRequiredElementById(
-          'a11y-click-clickonly-container',
-      );
-      const actionElement = getRequiredElementById(
-          'a11y-click-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-click-clickonly-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1419,7 +966,7 @@ describe('EventContract', () => {
 
       const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
@@ -1444,9 +991,9 @@ describe('EventContract', () => {
 
       const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'a'});
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('keydown');
       expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
@@ -1455,45 +1002,10 @@ describe('EventContract', () => {
       expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
     });
 
-    it('prevents default for enter key on anchor child', () => {
-      const container = getRequiredElementById('a11y-anchor-click-container');
-      const actionElement = getRequiredElementById(
-          'a11y-anchor-click-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-anchor-click-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      const eventContract = createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        exportAddA11yClickSupport: true,
-        eventTypes: ['click'],
-        dispatcher,
-      });
-      addDeferredA11yClickSupport(eventContract);
-
-      const keydownEvent = dispatchKeyboardEvent(targetElement, {key: 'Enter'});
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(keydownEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-      expect(keydownEvent.preventDefault).toHaveBeenCalled();
-    });
-
     it('dispatches clickonly event', () => {
       const container = getRequiredElementById('a11y-clickonly-container');
-      const actionElement = getRequiredElementById(
-          'a11y-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-clickonly-target-element',
-      );
+      const actionElement = getRequiredElementById('a11y-clickonly-action-element');
+      const targetElement = getRequiredElementById('a11y-clickonly-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContract = createEventContract({
@@ -1506,9 +1018,9 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('clickonly');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1518,15 +1030,9 @@ describe('EventContract', () => {
     });
 
     it('dispatches click event to click handler rather than clickonly', () => {
-      const container = getRequiredElementById(
-          'a11y-click-clickonly-container',
-      );
-      const actionElement = getRequiredElementById(
-          'a11y-click-clickonly-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'a11y-click-clickonly-target-element',
-      );
+      const container = getRequiredElementById('a11y-click-clickonly-container');
+      const actionElement = getRequiredElementById('a11y-click-clickonly-action-element');
+      const targetElement = getRequiredElementById('a11y-click-clickonly-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContract = createEventContract({
@@ -1539,9 +1045,9 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1561,27 +1067,16 @@ describe('EventContract', () => {
 
     beforeEach(() => {
       outerContainer = getRequiredElementById('nested-outer-container');
-      outerActionElement = getRequiredElementById(
-          'nested-outer-action-element',
-      );
-      outerTargetElement = getRequiredElementById(
-          'nested-outer-target-element',
-      );
+      outerActionElement = getRequiredElementById('nested-outer-action-element');
+      outerTargetElement = getRequiredElementById('nested-outer-target-element');
       innerContainer = getRequiredElementById('nested-inner-container');
-      innerActionElement = getRequiredElementById(
-          'nested-inner-action-element',
-      );
-      innerTargetElement = getRequiredElementById(
-          'nested-inner-target-element',
-      );
+      innerActionElement = getRequiredElementById('nested-inner-action-element');
+      innerTargetElement = getRequiredElementById('nested-inner-target-element');
     });
 
     it('dispatches events in outer container', () => {
       const documentListener = jasmine.createSpy('documentListener');
-      window.document.documentElement.addEventListener(
-          'click',
-          documentListener,
-      );
+      window.document.documentElement.addEventListener('click', documentListener);
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContractContainerManager = createEventContractMultiContainer(outerContainer);
       createEventContract({
@@ -1593,7 +1088,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(outerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1606,10 +1101,7 @@ describe('EventContract', () => {
 
     it('dispatches events in inner container', () => {
       const documentListener = jasmine.createSpy('documentListener');
-      window.document.documentElement.addEventListener(
-          'click',
-          documentListener,
-      );
+      window.document.documentElement.addEventListener('click', documentListener);
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContractContainerManager = createEventContractMultiContainer(outerContainer);
       createEventContract({
@@ -1621,7 +1113,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(innerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1634,10 +1126,7 @@ describe('EventContract', () => {
 
     it('dispatches events in outer container, inner registered first', () => {
       const documentListener = jasmine.createSpy('documentListener');
-      window.document.documentElement.addEventListener(
-          'click',
-          documentListener,
-      );
+      window.document.documentElement.addEventListener('click', documentListener);
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContractContainerManager = createEventContractMultiContainer(innerContainer);
       createEventContract({
@@ -1649,7 +1138,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(outerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1662,10 +1151,7 @@ describe('EventContract', () => {
 
     it('dispatches events in inner container, inner container registered first', () => {
       const documentListener = jasmine.createSpy('documentListener');
-      window.document.documentElement.addEventListener(
-          'click',
-          documentListener,
-      );
+      window.document.documentElement.addEventListener('click', documentListener);
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContractContainerManager = createEventContractMultiContainer(innerContainer);
       createEventContract({
@@ -1677,7 +1163,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(innerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1690,10 +1176,7 @@ describe('EventContract', () => {
 
     it('dispatches events in inner container, inner container removed', () => {
       const documentListener = jasmine.createSpy('documentListener');
-      window.document.documentElement.addEventListener(
-          'click',
-          documentListener,
-      );
+      window.document.documentElement.addEventListener('click', documentListener);
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       const eventContractContainerManager = createEventContractMultiContainer(outerContainer);
       createEventContract({
@@ -1702,11 +1185,11 @@ describe('EventContract', () => {
         dispatcher,
       });
       const innerEventContractContainer =
-          eventContractContainerManager.addContainer(innerContainer);
+        eventContractContainerManager.addContainer(innerContainer);
 
       let clickEvent = dispatchMouseEvent(innerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       let eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1719,13 +1202,11 @@ describe('EventContract', () => {
       dispatcher.calls.reset();
       documentListener.calls.reset();
 
-      eventContractContainerManager.removeContainer(
-          innerEventContractContainer,
-      );
+      eventContractContainerManager.removeContainer(innerEventContractContainer);
 
       clickEvent = dispatchMouseEvent(innerTargetElement);
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -1734,125 +1215,6 @@ describe('EventContract', () => {
       expect(eventInfoWrapper.getAction()?.element).toBe(innerActionElement);
 
       expect(documentListener).toHaveBeenCalledTimes(1);
-    });
-
-    describe('with stop propagation', () => {
-      beforeEach(() => {
-        EventContract.STOP_PROPAGATION = true;
-        EventContractMultiContainer.STOP_PROPAGATION = true;
-      });
-
-      it('dispatches events in outer container', () => {
-        const documentListener = jasmine.createSpy('documentListener');
-        window.document.documentElement.addEventListener(
-            'click',
-            documentListener,
-        );
-        const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-        const eventContractContainerManager = createEventContractMultiContainer(outerContainer);
-        createEventContract({
-          eventContractContainerManager,
-          eventTypes: ['click'],
-          dispatcher,
-        });
-        eventContractContainerManager.addContainer(innerContainer);
-
-        const clickEvent = dispatchMouseEvent(outerTargetElement);
-
-        expect(dispatcher).toHaveBeenCalledTimes(2);
-        const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-        expect(eventInfoWrapper.getEventType()).toBe('click');
-        expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-        expect(eventInfoWrapper.getTargetElement()).toBe(outerTargetElement);
-        expect(eventInfoWrapper.getAction()?.name).toBe('outerHandleClick');
-        expect(eventInfoWrapper.getAction()?.element).toBe(outerActionElement);
-
-        expect(documentListener).toHaveBeenCalledTimes(0);
-      });
-
-      it('dispatches events in inner container', () => {
-        const documentListener = jasmine.createSpy('documentListener');
-        window.document.documentElement.addEventListener(
-            'click',
-            documentListener,
-        );
-        const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-        const eventContractContainerManager = createEventContractMultiContainer(outerContainer);
-        createEventContract({
-          eventContractContainerManager,
-          eventTypes: ['click'],
-          dispatcher,
-        });
-        eventContractContainerManager.addContainer(innerContainer);
-
-        const clickEvent = dispatchMouseEvent(innerTargetElement);
-
-        expect(dispatcher).toHaveBeenCalledTimes(2);
-        const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-        expect(eventInfoWrapper.getEventType()).toBe('click');
-        expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-        expect(eventInfoWrapper.getTargetElement()).toBe(innerTargetElement);
-        expect(eventInfoWrapper.getAction()?.name).toBe('innerHandleClick');
-        expect(eventInfoWrapper.getAction()?.element).toBe(innerActionElement);
-
-        expect(documentListener).toHaveBeenCalledTimes(0);
-      });
-
-      it('dispatches events in outer container, inner registered first', () => {
-        const documentListener = jasmine.createSpy('documentListener');
-        window.document.documentElement.addEventListener(
-            'click',
-            documentListener,
-        );
-        const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-        const eventContractContainerManager = createEventContractMultiContainer(innerContainer);
-        createEventContract({
-          eventContractContainerManager,
-          eventTypes: ['click'],
-          dispatcher,
-        });
-        eventContractContainerManager.addContainer(outerContainer);
-
-        const clickEvent = dispatchMouseEvent(outerTargetElement);
-
-        expect(dispatcher).toHaveBeenCalledTimes(2);
-        const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-        expect(eventInfoWrapper.getEventType()).toBe('click');
-        expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-        expect(eventInfoWrapper.getTargetElement()).toBe(outerTargetElement);
-        expect(eventInfoWrapper.getAction()?.name).toBe('outerHandleClick');
-        expect(eventInfoWrapper.getAction()?.element).toBe(outerActionElement);
-
-        expect(documentListener).toHaveBeenCalledTimes(0);
-      });
-
-      it('dispatches events in inner container, inner registered first', () => {
-        const documentListener = jasmine.createSpy('documentListener');
-        window.document.documentElement.addEventListener(
-            'click',
-            documentListener,
-        );
-        const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-        const eventContractContainerManager = createEventContractMultiContainer(innerContainer);
-        createEventContract({
-          eventContractContainerManager,
-          eventTypes: ['click'],
-          dispatcher,
-        });
-        eventContractContainerManager.addContainer(outerContainer);
-
-        const clickEvent = dispatchMouseEvent(innerTargetElement);
-
-        expect(dispatcher).toHaveBeenCalledTimes(2);
-        const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-        expect(eventInfoWrapper.getEventType()).toBe('click');
-        expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-        expect(eventInfoWrapper.getTargetElement()).toBe(innerTargetElement);
-        expect(eventInfoWrapper.getAction()?.name).toBe('innerHandleClick');
-        expect(eventInfoWrapper.getAction()?.element).toBe(innerActionElement);
-
-        expect(documentListener).toHaveBeenCalledTimes(0);
-      });
     });
   });
 
@@ -1880,7 +1242,7 @@ describe('EventContract', () => {
         relatedTarget: container,
       });
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('mouseenter');
       const syntheticMouseEvent = eventInfoWrapper.getEvent();
@@ -1933,7 +1295,7 @@ describe('EventContract', () => {
         relatedTarget: container,
       });
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('mouseleave');
       const syntheticMouseEvent = eventInfoWrapper.getEvent();
@@ -1969,12 +1331,8 @@ describe('EventContract', () => {
 
     it('dispatches matching pointerover as pointerenter event', () => {
       const container = getRequiredElementById('pointerenter-container');
-      const actionElement = getRequiredElementById(
-          'pointerenter-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'pointerenter-target-element',
-      );
+      const actionElement = getRequiredElementById('pointerenter-action-element');
+      const targetElement = getRequiredElementById('pointerenter-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -1990,7 +1348,7 @@ describe('EventContract', () => {
         relatedTarget: container,
       });
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('pointerenter');
       const syntheticMouseEvent = eventInfoWrapper.getEvent();
@@ -2003,12 +1361,8 @@ describe('EventContract', () => {
 
     it('does not dispatch non-matching pointerover event as pointerenter', () => {
       const container = getRequiredElementById('pointerenter-container');
-      const actionElement = getRequiredElementById(
-          'pointerenter-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'pointerenter-target-element',
-      );
+      const actionElement = getRequiredElementById('pointerenter-action-element');
+      const targetElement = getRequiredElementById('pointerenter-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -2030,12 +1384,8 @@ describe('EventContract', () => {
 
     it('dispatches matching pointerout as pointerleave event', () => {
       const container = getRequiredElementById('pointerleave-container');
-      const actionElement = getRequiredElementById(
-          'pointerleave-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'pointerleave-target-element',
-      );
+      const actionElement = getRequiredElementById('pointerleave-action-element');
+      const targetElement = getRequiredElementById('pointerleave-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -2051,7 +1401,7 @@ describe('EventContract', () => {
         relatedTarget: container,
       });
 
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('pointerleave');
       const syntheticMouseEvent = eventInfoWrapper.getEvent();
@@ -2064,12 +1414,8 @@ describe('EventContract', () => {
 
     it('does not dispatch non-matching pointerout event as pointerleave', () => {
       const container = getRequiredElementById('pointerleave-container');
-      const actionElement = getRequiredElementById(
-          'pointerleave-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'pointerleave-target-element',
-      );
+      const actionElement = getRequiredElementById('pointerleave-action-element');
+      const targetElement = getRequiredElementById('pointerleave-target-element');
 
       const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
       createEventContract({
@@ -2090,141 +1436,14 @@ describe('EventContract', () => {
     });
   });
 
-  describe('jsnamespace', () => {
-    beforeEach(() => {
-      EventContract.JSNAMESPACE_SUPPORT = true;
-    });
-
-    it('dispatches event', () => {
-      const container = getRequiredElementById('jsnamespace-container');
-      const actionElement = getRequiredElementById(
-          'jsnamespace-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'jsnamespace-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      const clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('namespace.handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('caches namespace attribute', () => {
-      const container = getRequiredElementById('jsnamespace-container');
-      const namespaceElement = getRequiredElementById(
-          'jsnamespace-namespace-element',
-      );
-      const actionElement = getRequiredElementById(
-          'jsnamespace-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'jsnamespace-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      let clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      let eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('namespace.handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-      namespaceElement.setAttribute('jsnamespace', 'renamedNamespace');
-      dispatcher.calls.reset();
-
-      clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('namespace.handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-
-    it('re-parses jsaction attribute if the action cache is cleared', () => {
-      const container = getRequiredElementById('jsnamespace-container');
-      const namespaceElement = getRequiredElementById(
-          'jsnamespace-namespace-element',
-      );
-      const actionElement = getRequiredElementById(
-          'jsnamespace-action-element',
-      );
-      const targetElement = getRequiredElementById(
-          'jsnamespace-target-element',
-      );
-
-      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
-      createEventContract({
-        eventContractContainerManager: new EventContractContainer(container),
-        eventTypes: ['click'],
-        dispatcher,
-      });
-
-      let clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      let eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name).toBe('namespace.handleClick');
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-
-      namespaceElement.setAttribute('jsnamespace', 'renamedNamespace');
-      // Clear namespace cache.
-      cache.clearNamespace(namespaceElement);
-      // Clear action cache.
-      cache.clear(actionElement);
-      dispatcher.calls.reset();
-
-      clickEvent = dispatchMouseEvent(targetElement);
-
-      expect(dispatcher).toHaveBeenCalledTimes(2);
-      eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
-      expect(eventInfoWrapper.getEventType()).toBe('click');
-      expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
-      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
-      expect(eventInfoWrapper.getAction()?.name)
-          .toBe(
-              'renamedNamespace.handleClick',
-          );
-      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
-    });
-  });
-
   describe('early events', () => {
     let removeEventListenerSpy: jasmine.Spy;
 
     beforeEach(() => {
       removeEventListenerSpy = spyOn(
-                                   window.document.documentElement,
-                                   'removeEventListener',
-                                   )
-                                   .and.callThrough();
+        window.document.documentElement,
+        'removeEventListener',
+      ).and.callThrough();
     });
 
     it('early events are dispatched', () => {
@@ -2237,7 +1456,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      const earlyJsactionData: EarlyJsactionData|undefined = window._ejsa;
+      const earlyJsactionData: EarlyJsactionData | undefined = window._ejsa;
       expect(earlyJsactionData).toBeDefined();
       expect(earlyJsactionData!.q.length).toBe(1);
       expect(earlyJsactionData!.q[0].event).toBe(clickEvent);
@@ -2253,12 +1472,49 @@ describe('EventContract', () => {
 
       expect(window._ejsa).toBeUndefined();
       expect(removeEventListenerSpy).toHaveBeenCalledTimes(1);
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
       expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
       expect(eventInfoWrapper.getAction()?.name).toBe('handleClick');
+      expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
+    });
+
+    it('early capture events are dispatched', () => {
+      const container = getRequiredElementById('focus-container');
+      const actionElement = getRequiredElementById('focus-action-element');
+      const targetElement = getRequiredElementById('focus-target-element');
+      const replaySink = {_ejsa: undefined};
+      const removeEventListenerSpy = spyOn(container, 'removeEventListener').and.callThrough();
+
+      const earlyEventContract = new EarlyEventContract(replaySink, container);
+      earlyEventContract.addEvents(['focus'], true);
+
+      targetElement.focus();
+
+      const earlyJsactionData: EarlyJsactionData | undefined = replaySink._ejsa;
+      expect(earlyJsactionData).toBeDefined();
+      expect(earlyJsactionData!.q.length).toBe(1);
+      expect(earlyJsactionData!.q[0].event.type).toBe('focus');
+
+      const dispatcher = jasmine.createSpy<Dispatcher>('dispatcher');
+      const eventContract = createEventContract({
+        eventContractContainerManager: new EventContractContainer(container),
+        eventTypes: ['focus'],
+        dispatcher,
+      });
+
+      eventContract.replayEarlyEvents(replaySink);
+
+      expect(replaySink._ejsa).toBeUndefined();
+      expect(removeEventListenerSpy).toHaveBeenCalledTimes(1);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
+      const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
+      expect(eventInfoWrapper.getEventType()).toBe('focus');
+      expect(eventInfoWrapper.getEvent().type).toBe('focus');
+      expect(eventInfoWrapper.getTargetElement()).toBe(targetElement);
+      expect(eventInfoWrapper.getAction()?.name).toBe('handleFocus');
       expect(eventInfoWrapper.getAction()?.element).toBe(actionElement);
     });
 
@@ -2272,7 +1528,7 @@ describe('EventContract', () => {
 
       const clickEvent = dispatchMouseEvent(targetElement);
 
-      const earlyJsactionData: EarlyJsactionData|undefined = window._ejsa;
+      const earlyJsactionData: EarlyJsactionData | undefined = window._ejsa;
       expect(earlyJsactionData).toBeDefined();
       expect(earlyJsactionData!.q.length).toBe(1);
       expect(earlyJsactionData!.q[0].event).toBe(clickEvent);
@@ -2291,7 +1547,7 @@ describe('EventContract', () => {
 
       expect(window._ejsa).toBeUndefined();
       expect(removeEventListenerSpy).toHaveBeenCalledTimes(1);
-      expect(dispatcher).toHaveBeenCalledTimes(2);
+      expect(dispatcher).toHaveBeenCalledTimes(1);
       const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
       expect(eventInfoWrapper.getEventType()).toBe('click');
       expect(eventInfoWrapper.getEvent()).toBe(clickEvent);
@@ -2307,12 +1563,8 @@ describe('EventContract', () => {
 
       it('early mouseout dispatched as mouseleave and mouseout', () => {
         const container = getRequiredElementById('mouseleave-container');
-        const actionElement = getRequiredElementById(
-            'mouseleave-action-element',
-        );
-        const targetElement = getRequiredElementById(
-            'mouseleave-target-element',
-        );
+        const actionElement = getRequiredElementById('mouseleave-action-element');
+        const targetElement = getRequiredElementById('mouseleave-target-element');
 
         const early = new EarlyEventContract();
         early.addEvents(['mouseout']);
@@ -2324,7 +1576,9 @@ describe('EventContract', () => {
           relatedTarget: container,
         });
 
-        const earlyJsactionData: EarlyJsactionData|undefined = window._ejsa;
+        const earlyJsactionData: EarlyJsactionData | undefined = (
+          window as EarlyJsactionDataContainer
+        )._ejsa;
         expect(earlyJsactionData).toBeDefined();
         expect(earlyJsactionData!.q.length).toBe(1);
         expect(earlyJsactionData!.q[0].event).toBe(mouseOutEvent);
@@ -2338,9 +1592,9 @@ describe('EventContract', () => {
 
         eventContract.replayEarlyEvents();
 
-        expect(window._ejsa).toBeUndefined();
+        expect((window as EarlyJsactionDataContainer)._ejsa).toBeUndefined();
         expect(removeEventListenerSpy).toHaveBeenCalledTimes(1);
-        expect(dispatcher).toHaveBeenCalledTimes(3);
+        expect(dispatcher).toHaveBeenCalledTimes(2);
         const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
         expect(eventInfoWrapper.getEventType()).toBe('mouseleave');
         const syntheticMouseEvent = eventInfoWrapper.getEvent();
@@ -2353,12 +1607,8 @@ describe('EventContract', () => {
 
       it('early mouseout dispatched as only mouseleave', () => {
         const container = getRequiredElementById('mouseleave-container');
-        const actionElement = getRequiredElementById(
-            'mouseleave-action-element',
-        );
-        const targetElement = getRequiredElementById(
-            'mouseleave-target-element',
-        );
+        const actionElement = getRequiredElementById('mouseleave-action-element');
+        const targetElement = getRequiredElementById('mouseleave-target-element');
 
         const early = new EarlyEventContract();
         early.addEvents(['mouseout']);
@@ -2370,7 +1620,7 @@ describe('EventContract', () => {
           relatedTarget: container,
         });
 
-        const earlyJsactionData: EarlyJsactionData|undefined = window._ejsa;
+        const earlyJsactionData: EarlyJsactionData | undefined = window._ejsa;
         expect(earlyJsactionData).toBeDefined();
         expect(earlyJsactionData!.q.length).toBe(1);
         expect(earlyJsactionData!.q[0].event).toBe(mouseOutEvent);
@@ -2386,7 +1636,7 @@ describe('EventContract', () => {
 
         expect(window._ejsa).toBeUndefined();
         expect(removeEventListenerSpy).toHaveBeenCalledTimes(1);
-        expect(dispatcher).toHaveBeenCalledTimes(2);
+        expect(dispatcher).toHaveBeenCalledTimes(1);
         const eventInfoWrapper = getLastDispatchedEventInfoWrapper(dispatcher);
         expect(eventInfoWrapper.getEventType()).toBe('mouseleave');
         const syntheticMouseEvent = eventInfoWrapper.getEvent();

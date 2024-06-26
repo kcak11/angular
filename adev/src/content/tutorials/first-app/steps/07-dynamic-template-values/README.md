@@ -27,7 +27,7 @@ In the code editor:
 1. Navigate to `src/app/housing-location/housing-location.component.ts`
 1. In the template property of the `@Component` decorator, replace the existing HTML markup with the following code:
 
-    <docs-code header="Update HousingLocationComponent template" path="adev/src/content/tutorials/first-app/steps/08-ngFor/src/app/housing-location/housing-location.component.ts" visibleLines="[9,15]"/>
+    <docs-code header="Update HousingLocationComponent template" path="adev/src/content/tutorials/first-app/steps/08-ngFor/src/app/housing-location/housing-location.component.ts" visibleLines="[9,20]"/>
 
     In this updated template code you have used property binding to bind the `housingLocation.photo` to the `src` attribute. The `alt` attribute uses interpolation to give more context to the alt text of the image.
 
@@ -54,6 +54,6 @@ With these skills, your app can now share data and display dynamic values in the
 For more information about the topics covered in this lesson, visit:
 
 <docs-pill-row>
-  <docs-pill href="guide/templates/interpolation" title="Template syntax"/>
-  <docs-pill href="guide/templates/template-syntax" title="Displaying values with interpolation"/>
+  <docs-pill href="guide/templates" title="Template syntax"/>
+  <docs-pill href="guide/templates/interpolation" title="Displaying values with interpolation"/>
 </docs-pill-row>

@@ -10,8 +10,16 @@ import {producerAccessed, SIGNAL, signalSetFn} from '@angular/core/primitives/si
 
 import {RuntimeError, RuntimeErrorCode} from '../../errors';
 import {Signal} from '../../render3/reactivity/api';
-import {signalAsReadonlyFn, WritableSignal, ɵWRITABLE_SIGNAL} from '../../render3/reactivity/signal';
-import {ɵINPUT_SIGNAL_BRAND_READ_TYPE, ɵINPUT_SIGNAL_BRAND_WRITE_TYPE} from '../input/input_signal';
+import {
+  signalAsReadonlyFn,
+  WritableSignal,
+  ɵWRITABLE_SIGNAL,
+} from '../../render3/reactivity/signal';
+import {
+  InputSignal,
+  ɵINPUT_SIGNAL_BRAND_READ_TYPE,
+  ɵINPUT_SIGNAL_BRAND_WRITE_TYPE,
+} from '../input/input_signal';
 import {INPUT_SIGNAL_NODE, InputSignalNode, REQUIRED_UNSET_VALUE} from '../input/input_signal_node';
 import {OutputEmitterRef} from '../output/output_emitter_ref';
 import {OutputRef} from '../output/output_ref';
@@ -37,10 +45,8 @@ export interface ModelOptions {
  *
  * @developerPreview
  */
-export interface ModelSignal<T> extends WritableSignal<T>, OutputRef<T> {
+export interface ModelSignal<T> extends WritableSignal<T>, InputSignal<T>, OutputRef<T> {
   [SIGNAL]: InputSignalNode<T, T>;
-  [ɵINPUT_SIGNAL_BRAND_READ_TYPE]: T;
-  [ɵINPUT_SIGNAL_BRAND_WRITE_TYPE]: T;
 }
 
 /**
@@ -85,17 +91,21 @@ export function createModelSignal<T>(initialValue: T): ModelSignal<T> {
     getter.toString = () => `[Model Signal: ${getter()}]`;
   }
 
-  return getter as (typeof getter&Pick<
-                    ModelSignal<T>,
-                    typeof ɵINPUT_SIGNAL_BRAND_READ_TYPE|typeof ɵINPUT_SIGNAL_BRAND_WRITE_TYPE|
-                    typeof ɵWRITABLE_SIGNAL>);
+  return getter as typeof getter &
+    Pick<
+      ModelSignal<T>,
+      | typeof ɵINPUT_SIGNAL_BRAND_READ_TYPE
+      | typeof ɵINPUT_SIGNAL_BRAND_WRITE_TYPE
+      | typeof ɵWRITABLE_SIGNAL
+    >;
 }
 
 /** Asserts that a model's value is set. */
 function assertModelSet(value: unknown): void {
   if (value === REQUIRED_UNSET_VALUE) {
     throw new RuntimeError(
-        RuntimeErrorCode.REQUIRED_MODEL_NO_VALUE,
-        ngDevMode && 'Model is required but no value is available yet.');
+      RuntimeErrorCode.REQUIRED_MODEL_NO_VALUE,
+      ngDevMode && 'Model is required but no value is available yet.',
+    );
   }
 }

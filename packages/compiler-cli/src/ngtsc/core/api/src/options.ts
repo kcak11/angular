@@ -8,8 +8,15 @@
 
 import ts from 'typescript';
 
-import {BazelAndG3Options, DiagnosticOptions, I18nOptions, LegacyNgcOptions, MiscOptions, StrictTemplateOptions, TargetOptions} from './public_options';
-
+import {
+  BazelAndG3Options,
+  DiagnosticOptions,
+  I18nOptions,
+  LegacyNgcOptions,
+  MiscOptions,
+  StrictTemplateOptions,
+  TargetOptions,
+} from './public_options';
 
 /**
  * Non-public options which are useful during testing of the compiler.
@@ -76,6 +83,14 @@ export interface InternalOptions {
   _enableBlockSyntax?: boolean;
 
   /**
+   * Whether `@let` syntax is enabled in the compiler.
+   * Defaults to false while the feature is being developed.
+   *
+   * @internal
+   */
+  _enableLetSyntax?: boolean;
+
+  /**
    * Detected version of `@angular/core` in the workspace. Used by the
    * compiler to adjust the output depending on the available symbols.
    *
@@ -90,10 +105,17 @@ export interface InternalOptions {
  *
  * Also includes a few miscellaneous options.
  */
-export interface NgCompilerOptions extends ts.CompilerOptions, LegacyNgcOptions, BazelAndG3Options,
-                                           DiagnosticOptions, StrictTemplateOptions,
-                                           TestOnlyOptions, I18nOptions, TargetOptions,
-                                           InternalOptions, MiscOptions {
+export interface NgCompilerOptions
+  extends ts.CompilerOptions,
+    LegacyNgcOptions,
+    BazelAndG3Options,
+    DiagnosticOptions,
+    StrictTemplateOptions,
+    TestOnlyOptions,
+    I18nOptions,
+    TargetOptions,
+    InternalOptions,
+    MiscOptions {
   // Replace the index signature type from `ts.CompilerOptions` as it is more strict than it needs
   // to be and would conflict with some types from the other interfaces. This is ok because Angular
   // compiler options are actually separate from TS compiler options in the `tsconfig.json` and we

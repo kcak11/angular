@@ -10,7 +10,6 @@ import {Location} from '@angular/common';
 import {
   inject,
   Injectable,
-  NgZone,
   Type,
   ɵConsole as Console,
   ɵPendingTasks as PendingTasks,
@@ -106,7 +105,6 @@ export class Router {
   }
   private disposed = false;
   private nonRouterCurrentEntryChangeSubscription?: SubscriptionLike;
-  private isNgZoneEnabled = false;
 
   private readonly console = inject(Console);
   private readonly stateManager = inject(StateManager);
@@ -186,8 +184,6 @@ export class Router {
   readonly componentInputBindingEnabled: boolean = !!inject(INPUT_BINDER, {optional: true});
 
   constructor() {
-    this.isNgZoneEnabled = inject(NgZone) instanceof NgZone && NgZone.isInAngularZone();
-
     this.resetConfig(this.config);
 
     this.navigationTransitions
@@ -226,7 +222,7 @@ export class Router {
               currentTransition.currentRawUrl,
             );
             const extras = {
-              // Persist transient navigation info from the original navigation request.
+              browserUrl: currentTransition.extras.browserUrl,
               info: currentTransition.extras.info,
               skipLocationChange: currentTransition.extras.skipLocationChange,
               // The URL is already updated at this point if we have 'eager' URL
@@ -522,14 +518,6 @@ export class Router {
       skipLocationChange: false,
     },
   ): Promise<boolean> {
-    if (typeof ngDevMode === 'undefined' || ngDevMode) {
-      if (this.isNgZoneEnabled && !NgZone.isInAngularZone()) {
-        this.console.warn(
-          `Navigation triggered outside Angular zone, did you forget to call 'ngZone.run()'?`,
-        );
-      }
-    }
-
     const urlTree = isUrlTree(url) ? url : this.parseUrl(url);
     const mergedTree = this.urlHandlingStrategy.merge(urlTree, this.rawUrlTree);
 

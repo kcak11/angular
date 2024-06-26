@@ -60,8 +60,18 @@ export interface JsDocTagEntry {
 /** Documentation entity for single generic parameter. */
 export interface GenericEntry {
   name: string;
-  constraint: string|undefined;
-  default: string|undefined;
+  constraint: string | undefined;
+  default: string | undefined;
+}
+
+export interface SourceEntry {
+  filePath: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface DocEntryWithSourceInfo extends DocEntry {
+  source: SourceEntry;
 }
 
 /** Base type for all documentation entities. */
@@ -120,6 +130,8 @@ export interface PipeEntry extends ClassEntry {
 export interface FunctionEntry extends DocEntry {
   params: ParameterEntry[];
   returnType: string;
+  returnDescription?: string;
+
   generics: GenericEntry[];
   isNewType: boolean;
 }
@@ -148,7 +160,7 @@ export interface PropertyEntry extends MemberEntry {
 }
 
 /** Sub-entry for a class method. */
-export type MethodEntry = MemberEntry&FunctionEntry;
+export type MethodEntry = MemberEntry & FunctionEntry;
 
 /** Sub-entry for a single function parameter. */
 export interface ParameterEntry {
@@ -163,7 +175,7 @@ export interface ParameterEntry {
 export interface FunctionWithOverloads {
   name: string;
   signatures: FunctionEntry[];
-  implementation: FunctionEntry|null;
+  implementation: FunctionEntry | null;
 }
 
 /**
@@ -194,4 +206,8 @@ export interface InitializerApiFunctionEntry extends DocEntry {
      */
     showTypesInSignaturePreview?: boolean;
   };
+}
+
+export function isDocEntryWithSourceInfo(entry: DocEntry): entry is DocEntryWithSourceInfo {
+  return 'source' in entry;
 }

@@ -30,7 +30,8 @@ The CLI automatically appends `Component`, so if you were to write `first-compon
 
 <docs-callout title="`base href`">
 
-This guide works with a CLI-generated Angular application.
+This guide works with a CLI-generated Angular application. If you are working manually, make sure that you have `<base href="/">` in the `<head>` of your index.html file.
+This assumes that the `app` folder is the application root, and uses `"/"`.
 
 </docs-callout>
 
@@ -168,12 +169,6 @@ set id(heroId: string) {
 ```
 
 NOTE: You can bind all route data with key, value pairs to component inputs: static or resolved route data, path parameters, matrix parameters, and query parameters.
-If you want to use the parent components route info you will need to set the router paramsInheritanceStrategy option: withRouterConfig({paramsInheritanceStrategy: 'always'})
-
-</docs-step>
-
-Note: You can bind all route data with key, value pairs to component inputs: static or resolved route data, path parameters, matrix parameters, and query parameters.
-
 If you want to use the parent components route info you will need to set the router `paramsInheritanceStrategy` option:
 `withRouterConfig({paramsInheritanceStrategy: 'always'})`
 
@@ -232,6 +227,29 @@ const routes: Routes = [
 In this example, the third route is a redirect so that the router defaults to the `first-component` route.
 Notice that this redirect precedes the wildcard route.
 Here, `path: ''` means to use the initial relative URL \(`''`\).
+
+Sometimes a redirect is not a simple, static redirect. The `redirectTo` property can also be a function
+with more complex logic that returns a string or `UrlTree`.
+
+```ts
+const routes: Routes = [
+  { path: "first-component", component: FirstComponent },
+  {
+    path: "old-user-page",
+    redirectTo: ({ queryParams }) => {
+      const errorHandler = inject(ErrorHandler);
+      const userIdParam = queryParams['userId'];
+      if (userIdParam !== undefined) {
+        return `/user/${userIdParam}`;
+      } else {
+        errorHandler.handleError(new Error('Attempted navigation to user page without user ID.'));
+        return `/not-found`;
+      }
+    },
+  },
+  { path: "user/:userId", component: OtherComponent },
+];
+```
 
 ## Nesting routes
 
@@ -616,7 +634,7 @@ The in-application URLs can be indistinguishable from server URLs.
 Modern HTML5 browsers were the first to support `pushState` which is why many people refer to these URLs as "HTML5 style" URLs.
 
 HELPFUL: HTML5 style navigation is the router default.
-In the [LocationStrategy and browser URL styles](#browser-url-styles) section, learn why HTML5 style is preferable, how to adjust its behavior, and how to switch to the older hash \(`#`\) style, if necessary.
+In the [LocationStrategy and browser URL styles](#locationstrategy-and-browser-url-styles) section, learn why HTML5 style is preferable, how to adjust its behavior, and how to switch to the older hash \(`#`\) style, if necessary.
 
 You must add a [`<base href>` element](https://developer.mozilla.org/docs/Web/HTML/Element/base 'base href') to the application's `index.html` for `pushState` routing to work.
 The browser uses the `<base href>` value to prefix relative URLs when referencing CSS files, scripts, and images.

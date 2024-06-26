@@ -435,6 +435,9 @@
     "name": "REACTIVE_LVIEW_CONSUMER_NODE"
   },
   {
+    "name": "REACTIVE_NODE"
+  },
+  {
     "name": "REMOVE_STYLES_ON_COMPONENT_DESTROY"
   },
   {
@@ -460,9 +463,6 @@
   },
   {
     "name": "Sanitizer"
-  },
-  {
-    "name": "SchedulingMode"
   },
   {
     "name": "ShadowDomRenderer"
@@ -493,6 +493,9 @@
   },
   {
     "name": "Subscription"
+  },
+  {
+    "name": "TEMPORARY_CONSUMER_NODE"
   },
   {
     "name": "TESTABILITY"
@@ -558,10 +561,16 @@
     "name": "_CACHED_BODY"
   },
   {
+    "name": "_ComponentFactoryResolver"
+  },
+  {
     "name": "_DOM"
   },
   {
     "name": "_IS_WEBKIT"
+  },
+  {
+    "name": "_Injector"
   },
   {
     "name": "_NullComponentFactoryResolver"
@@ -619,9 +628,6 @@
   },
   {
     "name": "_wasLastNodeCreated"
-  },
-  {
-    "name": "_wrapInTimeout"
   },
   {
     "name": "activeConsumer"
@@ -742,6 +748,12 @@
   },
   {
     "name": "configureViewWithDirective"
+  },
+  {
+    "name": "consumerBeforeComputation"
+  },
+  {
+    "name": "consumerDestroy"
   },
   {
     "name": "consumerIsLive"
@@ -1026,6 +1038,9 @@
     "name": "handleUnhandledError"
   },
   {
+    "name": "hasApplyArgsData"
+  },
+  {
     "name": "hasTagAndTypeMatch"
   },
   {
@@ -1075,6 +1090,9 @@
   },
   {
     "name": "internalImportProvidersFrom"
+  },
+  {
+    "name": "internalProvideZoneChangeDetection"
   },
   {
     "name": "interpolateParams"
@@ -1287,9 +1305,6 @@
     "name": "profiler"
   },
   {
-    "name": "provideZoneChangeDetection"
-  },
-  {
     "name": "refreshContentQueries"
   },
   {
@@ -1347,7 +1362,10 @@
     "name": "saveNameToExportMap"
   },
   {
-    "name": "scheduleCallback"
+    "name": "scheduleCallbackWithMicrotask"
+  },
+  {
+    "name": "scheduleCallbackWithRafRace"
   },
   {
     "name": "searchTokensOnInjector"
@@ -1444,6 +1462,9 @@
   },
   {
     "name": "viewAttachedToChangeDetector"
+  },
+  {
+    "name": "viewShouldHaveReactiveConsumer"
   },
   {
     "name": "visitDslNode"

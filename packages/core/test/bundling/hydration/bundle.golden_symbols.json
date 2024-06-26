@@ -183,6 +183,9 @@
     "name": "HTTP_ROOT_INTERCEPTOR_FNS"
   },
   {
+    "name": "HTTP_TRANSFER_CACHE_ORIGIN_MAP"
+  },
+  {
     "name": "HttpEventType"
   },
   {
@@ -193,9 +196,6 @@
   },
   {
     "name": "HttpResponseBase"
-  },
-  {
-    "name": "HttpStatusCode"
   },
   {
     "name": "HydrationFeatureKind"
@@ -393,6 +393,9 @@
     "name": "REACTIVE_LVIEW_CONSUMER_NODE"
   },
   {
+    "name": "REACTIVE_NODE"
+  },
+  {
     "name": "REFERENCE_NODE_BODY"
   },
   {
@@ -403,6 +406,9 @@
   },
   {
     "name": "REMOVE_STYLES_ON_COMPONENT_DESTROY"
+  },
+  {
+    "name": "REQ_URL"
   },
   {
     "name": "RESPONSE_TYPE"
@@ -441,9 +447,6 @@
     "name": "Sanitizer"
   },
   {
-    "name": "SchedulingMode"
-  },
-  {
     "name": "ShadowDomRenderer"
   },
   {
@@ -465,6 +468,9 @@
     "name": "Subscription"
   },
   {
+    "name": "TEMPORARY_CONSUMER_NODE"
+  },
+  {
     "name": "TESTABILITY"
   },
   {
@@ -478,9 +484,6 @@
   },
   {
     "name": "TransferState"
-  },
-  {
-    "name": "URL2"
   },
   {
     "name": "USE_VALUE"
@@ -504,7 +507,13 @@
     "name": "ZoneStablePendingTask"
   },
   {
+    "name": "_ComponentFactoryResolver"
+  },
+  {
     "name": "_DOM"
+  },
+  {
+    "name": "_Injector"
   },
   {
     "name": "_NullComponentFactoryResolver"
@@ -559,9 +568,6 @@
   },
   {
     "name": "_wasLastNodeCreated"
-  },
-  {
-    "name": "_wrapInTimeout"
   },
   {
     "name": "activeConsumer"
@@ -661,6 +667,12 @@
   },
   {
     "name": "configureViewWithDirective"
+  },
+  {
+    "name": "consumerBeforeComputation"
+  },
+  {
+    "name": "consumerDestroy"
   },
   {
     "name": "consumerIsLive"
@@ -933,6 +945,9 @@
     "name": "handleUnhandledError"
   },
   {
+    "name": "hasApplyArgsData"
+  },
+  {
     "name": "hasInSkipHydrationBlockFlag"
   },
   {
@@ -991,6 +1006,9 @@
   },
   {
     "name": "internalImportProvidersFrom"
+  },
+  {
+    "name": "internalProvideZoneChangeDetection"
   },
   {
     "name": "invokeHostBindingsInCreationMode"
@@ -1206,9 +1224,6 @@
     "name": "profiler"
   },
   {
-    "name": "provideZoneChangeDetection"
-  },
-  {
     "name": "readableStreamLikeToAsyncGenerator"
   },
   {
@@ -1263,7 +1278,10 @@
     "name": "scheduleAsyncIterable"
   },
   {
-    "name": "scheduleCallback"
+    "name": "scheduleCallbackWithMicrotask"
+  },
+  {
+    "name": "scheduleCallbackWithRafRace"
   },
   {
     "name": "searchTokensOnInjector"
@@ -1357,6 +1375,9 @@
   },
   {
     "name": "viewAttachedToChangeDetector"
+  },
+  {
+    "name": "viewShouldHaveReactiveConsumer"
   },
   {
     "name": "walkProviderTree"

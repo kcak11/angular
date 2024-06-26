@@ -34,37 +34,36 @@ import {global} from './global';
  *
  * @returns a function to cancel the scheduled callback
  */
-export function scheduleCallback(callback: Function): () => void {
-  // Note: the `scheduleCallback` is used in the `NgZone` class, but we cannot use the
-  // `inject` function. The `NgZone` instance may be created manually, and thus the injection
-  // context will be unavailable. This might be enough to check whether `requestAnimationFrame` is
-  // available because otherwise, we'll fall back to `setTimeout`.
-  const hasRequestAnimationFrame = typeof global['requestAnimationFrame'] === 'function';
-  let nativeRequestAnimationFrame =
-      hasRequestAnimationFrame ? global['requestAnimationFrame'] : null;
-  let nativeSetTimeout = global['setTimeout'];
-  if (typeof Zone !== 'undefined') {
-    if (hasRequestAnimationFrame) {
-      nativeRequestAnimationFrame =
-          global[Zone.__symbol__('requestAnimationFrame')] ?? nativeRequestAnimationFrame;
-    }
-    nativeSetTimeout = global[Zone.__symbol__('setTimeout')] ?? nativeSetTimeout;
-  }
-
+export function scheduleCallbackWithRafRace(callback: Function): () => void {
   let executeCallback = true;
-  nativeSetTimeout(() => {
+  setTimeout(() => {
     if (!executeCallback) {
       return;
     }
     executeCallback = false;
     callback();
   });
-  nativeRequestAnimationFrame?.(() => {
-    if (!executeCallback) {
-      return;
-    }
+  if (typeof global['requestAnimationFrame'] === 'function') {
+    global['requestAnimationFrame'](() => {
+      if (!executeCallback) {
+        return;
+      }
+      executeCallback = false;
+      callback();
+    });
+  }
+
+  return () => {
     executeCallback = false;
-    callback();
+  };
+}
+
+export function scheduleCallbackWithMicrotask(callback: Function): () => void {
+  let executeCallback = true;
+  queueMicrotask(() => {
+    if (executeCallback) {
+      callback();
+    }
   });
 
   return () => {
